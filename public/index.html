@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Venue Management</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/main.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+    <style>
+        .form-select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            background-color: transparent;
+        }
+        
+        input[type="date"][disabled] {
+            color: #ccc;
+            background-color: #f9f9f9;
+            cursor: not-allowed;
+        }
+
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        .menu-card {
+            transition: transform 0.2s;
+        }
+
+        .menu-card:hover {
+            transform: translateY(-5px);
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <script>
+    (function() {
+        const username = localStorage.getItem('username');
+        if (!username) {
+            console.log("No user found, redirecting to auth page");
+            window.location.href = 'auth.html';
+        }
+    })();
+    </script>
+
+    <div class="container mx-auto px-4 py-8 max-w-3xl">
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">
+                Conference Room & School Club Venue Management
+            </h1>
+            <button onclick="logout()" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">
+                Logout
+            </button>
+        </div>
+
+        <div class="text-center text-gray-600 mb-8" id="welcomeMessage"></div>
+
+        <!-- Main Menu Section -->
+        <div id="menuSection" class="section active">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="menu-card bg-white rounded-lg shadow-lg p-6 cursor-pointer" onclick="showSection('bookingSection')">
+                    <h2 class="text-2xl font-semibold text-gray-800 mb-4">Book a Venue</h2>
+                    <p class="text-gray-600">Schedule a new venue booking for your event</p>
+                </div>
+                <div class="menu-card bg-white rounded-lg shadow-lg p-6 cursor-pointer" onclick="showSection('viewSection')">
+                    <h2 class="text-2xl font-semibold text-gray-800 mb-4">View Bookings</h2>
+                    <p class="text-gray-600">Check all upcoming venue bookings</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Booking Section -->
+        <div id="bookingSection" class="section">
+            <button onclick="showSection('menuSection')" class="mb-6 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300">
+                Back to Menu
+            </button>
+            
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-6">Book a Venue</h2>
+                <form id="bookingForm" class="space-y-6">
+                    <div>
+                        <label for="attendees" class="block text-sm font-medium text-gray-700 mb-2">
+                            Number of Attendees
+                        </label>
+                        <select id="attendees" class="form-select block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                            <option value="">Select Attendees</option>
+                            <option value="0-50">0-50</option>
+                            <option value="50-100">50-100</option>
+                            <option value="100-150">100-150</option>
+                            <option value="150-200">150-200</option>
+                            <option value="200+">200+</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label for="venue" class="block text-sm font-medium text-gray-700 mb-2">
+                            Select Venue
+                        </label>
+                        <select id="venue" class="form-select block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required></select>
+                    </div>
+                    
+                    <div>
+                        <label for="date" class="block text-sm font-medium text-gray-700 mb-2">
+                            Select Date
+                        </label>
+                        <input type="date" id="date" class="form-input block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                    </div>
+                    
+                    <div>
+                        <label for="time" class="block text-sm font-medium text-gray-700 mb-2">
+                            Select Time
+                        </label>
+                        <input type="time" id="time" class="form-input block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" min="06:00" max="20:00" required>
+                    </div>
+                    
+                    <button type="submit" class="w-full bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors duration-200">
+                        Book Venue
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- View Bookings Section -->
+        <div id="viewSection" class="section">
+            <button onclick="showSection('menuSection')" class="mb-6 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300">
+                Back to Menu
+            </button>
+
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-semibold text-gray-800">Upcoming Bookings</h2>
+                    <div class="flex items-center">
+                        <input type="checkbox" id="myBookingsOnly" class="mr-2">
+                        <label for="myBookingsOnly" class="text-sm text-gray-600">Show my bookings only</label>
+                    </div>
+                </div>
+                <ul id="bookingsList" class="divide-y divide-gray-200"></ul>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4">Calendar View</h2>
+                <div id="calendar"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const venues = {
+            "0-50": ["L1", "L2", "L3", "L4"],
+            "50-100": ["BSR 100", "BSR 101", "BSR 102", "BSR 103"],
+            "100-150": ["S200", "S201", "S202", "S203"],
+            "150-200": ["S200", "S201", "S202", "S203"],
+            "200+": ["Pavilion", "School Hall"]
+        };
+        
+        let calendar;
+
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.getElementById(sectionId).classList.add('active');
+            
+            if (sectionId === 'viewSection') {
+                loadBookings();
+                if (calendar) {
+                    calendar.refetchEvents();
+                }
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('username');
+            window.location.href = 'auth.html';
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeInterface();
+            loadBookings();
+            setMinDate();
+            handleDateInput();
+            initializeCalendar();
+            
+            // Set welcome message
+            const username = localStorage.getItem('username');
+            document.getElementById('welcomeMessage').textContent = `Welcome, ${username}!`;
+        });
+
+        function initializeInterface() {
+            document.getElementById('attendees').addEventListener('change', function() {
+                const selected = this.value;
+                const venueSelect = document.getElementById('venue');
+                venueSelect.innerHTML = '<option value="">Select Venue</option>';
+                if (venues[selected]) {
+                    venues[selected].forEach(venue => {
+                        venueSelect.innerHTML += `<option value="${venue}">${venue}</option>`;
+                    });
+                }
+            });
+            
+            document.getElementById('bookingForm').addEventListener('submit', function(event) {
+                event.preventDefault();
+                submitBookingForm();
+            });
+
+            document.getElementById('myBookingsOnly').addEventListener('change', loadBookings);
+        }
+
+        function submitBookingForm() {
+            const venue = document.getElementById('venue').value;
+            const date = document.getElementById('date').value;
+            const time = document.getElementById('time').value;
+            const username = localStorage.getItem('username');
+
+            fetch('http://localhost:3004/bookings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ venue, date, time, username })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => { throw err; });
+                }
+                return response.json();
+            })
+            .then(data => {
+                alert(data.message);
+                showSection('viewSection');
+                if (calendar) {
+                    calendar.refetchEvents();
+                }
+            })
+            .catch(error => {
+                if (error.message) {
+                    alert(error.message);
+                } else {
+                    console.error('Error:', error);
+                    alert("An error occurred while booking the venue.");
+                }
+            });
+        }
+
+        function deleteBooking(id) {
+            const username = localStorage.getItem('username');
+            fetch(`http://localhost:3004/bookings/${id}?username=${username}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                loadBookings();
+                if (calendar) {
+                    calendar.refetchEvents();
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function loadBookings() {
+            const username = localStorage.getItem('username');
+            const myBookingsOnly = document.getElementById('myBookingsOnly').checked;
+            
+            const url = myBookingsOnly 
+                ? `http://localhost:3004/bookings?username=${username}`
+                : 'http://localhost:3004/bookings';
+                
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    const list = document.getElementById('bookingsList');
+                    list.innerHTML = '';
+                    
+                    if (data.length === 0) {
+                        list.innerHTML = '<li class="py-4 text-center text-gray-500">No bookings found</li>';
+                        return;
+                    }
+                    
+                    data.forEach(booking => {
+                        const startParts = booking.start.split('T');
+                        const canDelete = booking.username === username;
+                        
+                        list.innerHTML += `
+                            <li class="py-4 flex justify-between items-center">
+                                <div>
+                                    <h3 class="text-lg font-medium text-gray-900">${booking.title}</h3>
+                                    <p class="text-sm text-gray-500">${startParts[0]} at ${startParts[1]}</p>
+                                    ${!myBookingsOnly ? `<p class="text-xs text-gray-400">Booked by: ${booking.username}</p>` : ''}
+                                </div>
+                                ${canDelete ? `
+                                    <button onclick="deleteBooking(${booking.id})" 
+                                            class="bg-red-600 text-white px-3 py-1 rounded-md hover:bg-red-700">
+                                        Delete
+                                    </button>
+                                ` : ''}
+                            </li>`;
+                    });
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function initializeCalendar() {
+            var calendarEl = document.getElementById('calendar');
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                height: 450,
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                },
+                events: async function(fetchInfo, successCallback, failureCallback) {
+                    try {
+                        const username = localStorage.getItem('username');
+                        const myBookingsOnly = document.getElementById('myBookingsOnly').checked;
+                        const url = myBookingsOnly 
+                            ? `http://localhost:3004/bookings?username=${username}`
+                            : 'http://localhost:3004/bookings';
+                        
+                        let response = await fetch(url);
+                        let events = await response.json();
+                        successCallback(events);
+                    } catch (error) {
+                        failureCallback(error);
+                    }
+                },
+            });
+            calendar.render();
+        }
+
+        function setMinDate() {
+            const dateInput = document.getElementById('date');
+            const today = new Date();
+            const todayFormatted = today.toISOString().split('T')[0];
+            dateInput.setAttribute('min', todayFormatted);
+            dateInput.value = todayFormatted;
+        }
+
+        function handleDateInput() {
+            const dateInput = document.getElementById('date');
+            
+            const today = new Date();
+            const todayFormatted = today.toISOString().split('T')[0];
+            dateInput.setAttribute('min', todayFormatted);
+            
+            dateInput.addEventListener('change', function() {
+                const selectedDate = new Date(this.value);
+                selectedDate.setHours(0, 0, 0, 0);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                if (selectedDate < today) {
+                    alert("Please select a date from today onwards.");
+                    this.value = todayFormatted;
+                }
+            });
+        }
+
+        // Calendar event handlers
+        document.addEventListener('fullcalendar_events_update', function() {
+            if (calendar) {
+                calendar.refetchEvents();
+            }
+        });
+
+        // Automatically update bookings list and calendar periodically
+        setInterval(function() {
+            if (document.getElementById('viewSection').classList.contains('active')) {
+                loadBookings();
+                if (calendar) {
+                    calendar.refetchEvents();
+                }
+            }
+        }, 30000); // Update every 30 seconds
+    </script>
+</body>
+</html>

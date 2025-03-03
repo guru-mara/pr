@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication - Venue Management</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50">
+    <!-- Authentication check - Redirect already authenticated users -->
+    <script>
+    // Check if user is already logged in
+    (function() {
+        const username = localStorage.getItem('username');
+        if (username) {
+            console.log("User already logged in, redirecting to main page");
+            window.location.href = 'index.html';
+        }
+    })();
+    </script>
+
+    <div class="min-h-screen flex items-center justify-center px-4 py-12">
+        <div class="max-w-md w-full space-y-8">
+            <!-- Auth Container -->
+            <div id="authContainer" class="bg-white rounded-lg shadow-lg p-6">
+                <div class="text-center mb-8">
+                    <h2 id="authTitle" class="text-3xl font-bold text-gray-800">Welcome Back</h2>
+                    <p id="authSubtitle" class="mt-2 text-gray-600">Sign in to your account</p>
+                </div>
+
+                <!-- Login Form -->
+                <form id="loginForm" class="space-y-6">
+                    <div>
+                        <label for="loginUsername" class="block text-sm font-medium text-gray-700">Username</label>
+                        <input type="text" id="loginUsername" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label for="loginPassword" class="block text-sm font-medium text-gray-700">Password</label>
+                        <input type="password" id="loginPassword" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    </div>
+                    <button type="submit" class="w-full bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                        Sign In
+                    </button>
+                </form>
+
+                <!-- Signup Form -->
+                <form id="signupForm" class="space-y-6 hidden">
+                    <div>
+                        <label for="signupUsername" class="block text-sm font-medium text-gray-700">Username</label>
+                        <input type="text" id="signupUsername" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label for="signupPassword" class="block text-sm font-medium text-gray-700">Password</label>
+                        <input type="password" id="signupPassword" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    </div>
+                    <button type="submit" class="w-full bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                        Sign Up
+                    </button>
+                </form>
+
+                <!-- Toggle Links -->
+                <div class="mt-4 text-center">
+                    <button id="toggleAuth" class="text-indigo-600 hover:text-indigo-500">
+                        Create new account
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Status message display -->
+            <div id="statusMessage" class="hidden p-4 rounded-md text-center"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3004';
+
+        // Toggle between login and signup forms
+        function showLogin() {
+            document.getElementById('loginForm').classList.remove('hidden');
+            document.getElementById('signupForm').classList.add('hidden');
+            document.getElementById('authTitle').textContent = 'Welcome Back';
+            document.getElementById('authSubtitle').textContent = 'Sign in to your account';
+            document.getElementById('toggleAuth').textContent = 'Create new account';
+        }
+
+        function showSignup() {
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('signupForm').classList.remove('hidden');
+            document.getElementById('authTitle').textContent = 'Create Account';
+            document.getElementById('authSubtitle').textContent = 'Sign up for a new account';
+            document.getElementById('toggleAuth').textContent = 'Already have an account?';
+        }
+
+        // Display status messages
+        function showMessage(message, isError = false) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = isError 
+                ? 'p-4 rounded-md text-center bg-red-100 text-red-700' 
+                : 'p-4 rounded-md text-center bg-green-100 text-green-700';
+            statusEl.classList.remove('hidden');
+            
+            // Hide message after 5 seconds
+            setTimeout(() => {
+                statusEl.classList.add('hidden');
+            }, 5000);
+        }
+
+        // Toggle login/signup forms
+        document.getElementById('toggleAuth').addEventListener('click', function () {
+            if (document.getElementById('loginForm').classList.contains('hidden')) {
+                showLogin();
+            } else {
+                showSignup();
+            }
+        });
+
+        // Handle Signup
+        document.getElementById('signupForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const username = document.getElementById('signupUsername').value.trim();
+            const password = document.getElementById('signupPassword').value.trim();
+
+            if (!username || !password) {
+                showMessage('Please enter a valid username and password.', true);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/signup`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password }),
+                });
+
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    showMessage(data.message || 'Signup failed', true);
+                    return;
+                }
+
+                showMessage(data.message);
+                
+                // Switch to login form after successful signup
+                showLogin();
+                
+                // Auto-fill the login form
+                document.getElementById('loginUsername').value = username;
+                document.getElementById('loginPassword').value = password;
+                
+            } catch (error) {
+                console.error('Signup Error:', error);
+                showMessage('Signup failed. Server connection error.', true);
+            }
+        });
+
+        // Handle Login
+        document.getElementById('loginForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value.trim();
+
+            if (!username || !password) {
+                showMessage('Please enter a valid username and password.', true);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password }),
+                });
+
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    showMessage(data.message || 'Login failed', true);
+                    return;
+                }
+
+                if (data.message === "Login successful!") {
+                    // Store username in localStorage for authentication check
+                    localStorage.setItem('username', username);
+                    
+                    // Show success message briefly before redirecting
+                    showMessage('Login successful! Redirecting...');
+                    
+                    // Redirect after a brief delay
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 1000);
+                } else {
+                    showMessage(data.message, true);
+                }
+            } catch (error) {
+                console.error('Login Error:', error);
+                showMessage('Login failed. Server connection error.', true);
+            }
+        });
+    </script>
+</body>
+</html>
