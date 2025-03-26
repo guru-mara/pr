@@ -12,9 +12,14 @@
     // Check if user is already logged in
     (function() {
         const username = localStorage.getItem('username');
+        const isAdmin = localStorage.getItem('isAdmin');
+
         if (username) {
-            console.log("User already logged in, redirecting to main page");
-            window.location.href = 'index.html';
+            if (isAdmin === 'true') {
+                window.location.href = 'admin.html'; // Redirect admins
+            } else {
+                window.location.href = 'index.html'; // Redirect regular users
+            }
         }
     })();
     </script>
@@ -43,18 +48,22 @@
                     </button>
                 </form>
 
-                <!-- Signup Form -->
-                <form id="signupForm" class="space-y-6 hidden">
+                <!-- Registration Form (Hidden by default) -->
+                <form id="registerForm" class="space-y-6 hidden">
                     <div>
-                        <label for="signupUsername" class="block text-sm font-medium text-gray-700">Username</label>
-                        <input type="text" id="signupUsername" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <label for="registerUsername" class="block text-sm font-medium text-gray-700">Username</label>
+                        <input type="text" id="registerUsername" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                     </div>
                     <div>
-                        <label for="signupPassword" class="block text-sm font-medium text-gray-700">Password</label>
-                        <input type="password" id="signupPassword" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <label for="registerPassword" class="block text-sm font-medium text-gray-700">Password</label>
+                        <input type="password" id="registerPassword" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" minlength="6">
+                    </div>
+                    <div>
+                        <label for="confirmPassword" class="block text-sm font-medium text-gray-700">Confirm Password</label>
+                        <input type="password" id="confirmPassword" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" minlength="6">
                     </div>
                     <button type="submit" class="w-full bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
-                        Sign Up
+                        Create Account
                     </button>
                 </form>
 
@@ -72,24 +81,32 @@
     </div>
 
     <script>
-        const API_URL = 'http://localhost:3004';
+        const API_URL = 'http://localhost:3004/api';
+        const loginForm = document.getElementById('loginForm');
+        const registerForm = document.getElementById('registerForm');
+        const toggleAuthBtn = document.getElementById('toggleAuth');
+        const authTitle = document.getElementById('authTitle');
+        const authSubtitle = document.getElementById('authSubtitle');
+        let isLoginMode = true;
 
-        // Toggle between login and signup forms
-        function showLogin() {
-            document.getElementById('loginForm').classList.remove('hidden');
-            document.getElementById('signupForm').classList.add('hidden');
-            document.getElementById('authTitle').textContent = 'Welcome Back';
-            document.getElementById('authSubtitle').textContent = 'Sign in to your account';
-            document.getElementById('toggleAuth').textContent = 'Create new account';
-        }
-
-        function showSignup() {
-            document.getElementById('loginForm').classList.add('hidden');
-            document.getElementById('signupForm').classList.remove('hidden');
-            document.getElementById('authTitle').textContent = 'Create Account';
-            document.getElementById('authSubtitle').textContent = 'Sign up for a new account';
-            document.getElementById('toggleAuth').textContent = 'Already have an account?';
-        }
+        // Toggle between login and registration forms
+        toggleAuthBtn.addEventListener('click', function() {
+            isLoginMode = !isLoginMode;
+            
+            if (isLoginMode) {
+                loginForm.classList.remove('hidden');
+                registerForm.classList.add('hidden');
+                authTitle.textContent = 'Welcome Back';
+                authSubtitle.textContent = 'Sign in to your account';
+                toggleAuthBtn.textContent = 'Create new account';
+            } else {
+                loginForm.classList.add('hidden');
+                registerForm.classList.remove('hidden');
+                authTitle.textContent = 'Create Account';
+                authSubtitle.textContent = 'Register to access venue management';
+                toggleAuthBtn.textContent = 'Already have an account? Sign in';
+            }
+        });
 
         // Display status messages
         function showMessage(message, isError = false) {
@@ -106,63 +123,25 @@
             }, 5000);
         }
 
-        // Toggle login/signup forms
-        document.getElementById('toggleAuth').addEventListener('click', function () {
-            if (document.getElementById('loginForm').classList.contains('hidden')) {
-                showLogin();
-            } else {
-                showSignup();
-            }
-        });
-
-        // Handle Signup
-        document.getElementById('signupForm').addEventListener('submit', async function (e) {
-            e.preventDefault();
-            const username = document.getElementById('signupUsername').value.trim();
-            const password = document.getElementById('signupPassword').value.trim();
-
-            if (!username || !password) {
-                showMessage('Please enter a valid username and password.', true);
-                return;
-            }
-
-            try {
-                const response = await fetch(`${API_URL}/signup`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password }),
-                });
-
-                const data = await response.json();
-                
-                if (!response.ok) {
-                    showMessage(data.message || 'Signup failed', true);
-                    return;
-                }
-
-                showMessage(data.message);
-                
-                // Switch to login form after successful signup
-                showLogin();
-                
-                // Auto-fill the login form
-                document.getElementById('loginUsername').value = username;
-                document.getElementById('loginPassword').value = password;
-                
-            } catch (error) {
-                console.error('Signup Error:', error);
-                showMessage('Signup failed. Server connection error.', true);
-            }
-        });
-
         // Handle Login
-        document.getElementById('loginForm').addEventListener('submit', async function (e) {
+        loginForm.addEventListener('submit', async function (e) {
             e.preventDefault();
             const username = document.getElementById('loginUsername').value.trim();
             const password = document.getElementById('loginPassword').value.trim();
 
             if (!username || !password) {
                 showMessage('Please enter a valid username and password.', true);
+                return;
+            }
+
+            // Check for hardcoded admin credentials
+            if (username === "admin@example.com" && password === "admin123") {
+                localStorage.setItem('username', username);
+                localStorage.setItem('isAdmin', 'true'); // Mark user as admin
+                showMessage('Admin login successful! Redirecting...');
+                setTimeout(() => {
+                    window.location.href = 'admin.html';
+                }, 1000);
                 return;
             }
 
@@ -181,13 +160,10 @@
                 }
 
                 if (data.message === "Login successful!") {
-                    // Store username in localStorage for authentication check
+                    // Store username and mark as regular user
                     localStorage.setItem('username', username);
-                    
-                    // Show success message briefly before redirecting
+                    localStorage.setItem('isAdmin', 'false'); 
                     showMessage('Login successful! Redirecting...');
-                    
-                    // Redirect after a brief delay
                     setTimeout(() => {
                         window.location.href = 'index.html';
                     }, 1000);
@@ -197,6 +173,51 @@
             } catch (error) {
                 console.error('Login Error:', error);
                 showMessage('Login failed. Server connection error.', true);
+            }
+        });
+
+        // Handle Registration
+        registerForm.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const username = document.getElementById('registerUsername').value.trim();
+            const password = document.getElementById('registerPassword').value.trim();
+            const confirmPassword = document.getElementById('confirmPassword').value.trim();
+
+            // Basic validation
+            if (!username || !password) {
+                showMessage('Please fill in all required fields.', true);
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                showMessage('Passwords do not match.', true);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/signup`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password }),
+                });
+
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    showMessage(data.message || 'Registration failed', true);
+                    return;
+                }
+
+                showMessage('Account created successfully! Please login.');
+                
+                // Switch to login form after successful registration
+                setTimeout(() => {
+                    toggleAuthBtn.click(); // Switch to login mode
+                }, 1500);
+                
+            } catch (error) {
+                console.error('Registration Error:', error);
+                showMessage('Registration failed. Server connection error.', true);
             }
         });
     </script>

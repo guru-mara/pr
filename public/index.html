@@ -4,10 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Venue Management</title>
+    <!-- External stylesheets and scripts -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/main.min.css">
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
     <style>
+          /* Custom style for select dropdowns with arrow indicator */
         .form-select {
             appearance: none;
             background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
@@ -18,7 +20,7 @@
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
-        
+         /* Style for date picker icon */
         input[type="date"]::-webkit-calendar-picker-indicator {
             background-color: transparent;
         }
@@ -28,7 +30,7 @@
             background-color: #f9f9f9;
             cursor: not-allowed;
         }
-
+/* Section visibility management */
         .section {
             display: none;
         }
@@ -44,11 +46,27 @@
         .menu-card:hover {
             transform: translateY(-5px);
         }
+        
+        /* Profile styles */
+        #profileMenu {
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        
+        #profileButton {
+            transition: all 0.2s ease;
+        }
+        
+        #profileButton:hover {
+            background-color: #f3f4f6;
+        }
     </style>
 </head>
 <body class="bg-gray-50">
+     <!-- Authentication check script -->
     <script>
     (function() {
+         // Immediate function to check if user is logged in
         const username = localStorage.getItem('username');
         if (!username) {
             console.log("No user found, redirecting to auth page");
@@ -59,23 +77,69 @@
 
     <div class="container mx-auto px-4 py-8 max-w-3xl">
         <div class="flex justify-between items-center mb-8">
-            <h1 class="text-3xl font-bold text-gray-800">
-                Conference Room & School Club Venue Management
-            </h1>
-            <button onclick="logout()" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">
-                Logout
-            </button>
+            <!-- Profile dropdown and heading -->
+            <div class="flex items-center space-x-4">
+                <!-- Profile dropdown -->
+                <div class="relative" id="profileDropdown">
+                    <button id="profileButton" class="flex items-center space-x-2 bg-white rounded-full p-1 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <div class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-lg" id="profileInitial"></div>
+                        <span class="hidden md:inline text-gray-800 font-medium" id="profileName"></span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                    
+                    <!-- Dropdown Menu -->
+                    <div id="profileMenu" class="hidden absolute left-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
+                        <h3 class="px-4 py-2 text-sm text-gray-500 border-b">User Profile</h3>
+                        
+                        <!-- Profile Form -->
+                        <div class="px-4 py-2">
+                            <div class="mb-3">
+                                <label for="profileUsername" class="block text-xs font-medium text-gray-700">Username</label>
+                                <input type="text" id="profileUsername" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm" disabled>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="profileFullName" class="block text-xs font-medium text-gray-700">Full Name</label>
+                                <input type="text" id="profileFullName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="profileEmail" class="block text-xs font-medium text-gray-700">Email</label>
+                                <input type="email" id="profileEmail" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                            </div>
+                            
+                            <button id="saveProfileBtn" class="w-full mt-3 bg-indigo-600 text-white px-3 py-1 rounded-md hover:bg-indigo-700 text-sm">
+                                Save Profile
+                            </button>
+                        </div>
+                        
+                        <div class="border-t border-gray-100"></div>
+                        
+                        <a href="#" id="logoutBtn" class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100">
+                            Logout
+                        </a>
+                    </div>
+                </div>
+                
+                <h1 class="text-2xl md:text-3xl font-bold text-gray-800">
+                    Conference Room & Venue Management
+                </h1>
+            </div>
         </div>
-
+ <!-- Welcome message container -->
         <div class="text-center text-gray-600 mb-8" id="welcomeMessage"></div>
 
         <!-- Main Menu Section -->
         <div id="menuSection" class="section active">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Book a venue card -->
                 <div class="menu-card bg-white rounded-lg shadow-lg p-6 cursor-pointer" onclick="showSection('bookingSection')">
                     <h2 class="text-2xl font-semibold text-gray-800 mb-4">Book a Venue</h2>
                     <p class="text-gray-600">Schedule a new venue booking for your event</p>
                 </div>
+                <!-- View bookings card -->
                 <div class="menu-card bg-white rounded-lg shadow-lg p-6 cursor-pointer" onclick="showSection('viewSection')">
                     <h2 class="text-2xl font-semibold text-gray-800 mb-4">View Bookings</h2>
                     <p class="text-gray-600">Check all upcoming venue bookings</p>
@@ -85,13 +149,37 @@
 
         <!-- Booking Section -->
         <div id="bookingSection" class="section">
+             <!-- Back button to return to main menu -->
             <button onclick="showSection('menuSection')" class="mb-6 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300">
                 Back to Menu
             </button>
-            
+             <!-- Booking form container -->
             <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
                 <h2 class="text-2xl font-semibold text-gray-800 mb-6">Book a Venue</h2>
                 <form id="bookingForm" class="space-y-6">
+                    <!-- Department selection -->
+                    <div>
+                        <label for="department" class="block text-sm font-medium text-gray-700 mb-2">
+                            Department
+                        </label>
+                        <select id="department" class="form-select block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                            <option value="">Select Department</option>
+                            <option value="Administration">Administration</option>
+                            <option value="Faculty">Faculty</option>
+                            <option value="Student">Student</option>
+                            <option value="Clubs">Clubs & Societies</option>
+                            <option value="IT">IT Services</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <!-- Booking title/purpose -->
+                    <div>
+                        <label for="title" class="block text-sm font-medium text-gray-700 mb-2">
+                            Booking Title/Purpose
+                        </label>
+                        <input type="text" id="title" placeholder="e.g., Math Club Meeting, Science Conference" class="form-input block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                    </div>
+                    <!-- Attendee count - determines available venues -->
                     <div>
                         <label for="attendees" class="block text-sm font-medium text-gray-700 mb-2">
                             Number of Attendees
@@ -105,28 +193,56 @@
                             <option value="200+">200+</option>
                         </select>
                     </div>
-                    
+                    <!-- Venue selection - options populated based on attendee count -->
                     <div>
                         <label for="venue" class="block text-sm font-medium text-gray-700 mb-2">
                             Select Venue
                         </label>
                         <select id="venue" class="form-select block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required></select>
                     </div>
-                    
+                     <!-- Projector option -->
+                    <div>
+                        <label for="projector" class="block text-sm font-medium text-gray-700 mb-2">
+                            Projector Required?
+                        </label>
+                        <div class="mt-1">
+                            <div class="flex items-center">
+                                <input type="checkbox" id="projectorRequired" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                                <label for="projectorRequired" class="ml-2 block text-sm text-gray-700">
+                                    Yes, I need a projector
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Speaker option - only visible for larger groups -->
+                    <div id="speakerOption" style="display: none;">
+                        <label for="speaker" class="block text-sm font-medium text-gray-700 mb-2">
+                            Speaker System Required?
+                        </label>
+                        <div class="mt-1">
+                            <div class="flex items-center">
+                                <input type="checkbox" id="speakerRequired" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                                <label for="speakerRequired" class="ml-2 block text-sm text-gray-700">
+                                    Yes, I need a speaker system
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Date selection -->
                     <div>
                         <label for="date" class="block text-sm font-medium text-gray-700 mb-2">
                             Select Date
                         </label>
                         <input type="date" id="date" class="form-input block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
                     </div>
-                    
+                    <!-- Time selection - limited to operating hours -->
                     <div>
                         <label for="time" class="block text-sm font-medium text-gray-700 mb-2">
                             Select Time
                         </label>
                         <input type="time" id="time" class="form-input block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" min="06:00" max="20:00" required>
                     </div>
-                    
+                     <!-- Submit button -->
                     <button type="submit" class="w-full bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors duration-200">
                         Book Venue
                     </button>
@@ -136,21 +252,24 @@
 
         <!-- View Bookings Section -->
         <div id="viewSection" class="section">
+            <!-- Back button to return to main menu -->
             <button onclick="showSection('menuSection')" class="mb-6 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300">
                 Back to Menu
             </button>
-
+<!-- List view of bookings -->
             <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-2xl font-semibold text-gray-800">Upcoming Bookings</h2>
+                    <!-- Filter toggle for personal bookings -->
                     <div class="flex items-center">
                         <input type="checkbox" id="myBookingsOnly" class="mr-2">
                         <label for="myBookingsOnly" class="text-sm text-gray-600">Show my bookings only</label>
                     </div>
                 </div>
+                <!-- Dynamic list of bookings -->
                 <ul id="bookingsList" class="divide-y divide-gray-200"></ul>
             </div>
-            
+            <!-- Calendar view of bookings -->
             <div class="bg-white rounded-lg shadow-lg p-6">
                 <h2 class="text-2xl font-semibold text-gray-800 mb-4">Calendar View</h2>
                 <div id="calendar"></div>
@@ -159,232 +278,437 @@
     </div>
     
     <script>
-        const venues = {
-            "0-50": ["L1", "L2", "L3", "L4"],
-            "50-100": ["BSR 100", "BSR 101", "BSR 102", "BSR 103"],
-            "100-150": ["S200", "S201", "S202", "S203"],
-            "150-200": ["S200", "S201", "S202", "S203"],
-            "200+": ["Pavilion", "School Hall"]
-        };
+        // Venue data with capacity ranges and equipment information
+    const venues = {
+        "0-50": [
+            { name: "L1", hasProjector: true },
+            { name: "L2", hasProjector: false },
+            { name: "L3", hasProjector: true },
+            { name: "L4", hasProjector: false }
+        ],
+        "50-100": [
+            { name: "BSR 100", hasProjector: true },
+            { name: "BSR 101", hasProjector: false },
+            { name: "BSR 102", hasProjector: true },
+            { name: "BSR 103", hasProjector: false }
+        ],
+        "100-150": [
+            { name: "S200", hasProjector: true },
+            { name: "S201", hasProjector: true },
+            { name: "S202", hasProjector: false },
+            { name: "S203", hasProjector: true }
+        ],
+        "150-200": [
+            { name: "S200", hasProjector: true },
+            { name: "S201", hasProjector: true },
+            { name: "S202", hasProjector: false },
+            { name: "S203", hasProjector: true }
+        ],
+        "200+": [
+            { name: "Pavilion", hasProjector: true },
+            { name: "School Hall", hasProjector: true }
+        ]
+    };
+// Global calendar object
+    let calendar;
+
+    // Profile functionality
+    function initializeProfile() {
+        const profileButton = document.getElementById('profileButton');
+        const profileMenu = document.getElementById('profileMenu');
+        const saveProfileBtn = document.getElementById('saveProfileBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const profileInitial = document.getElementById('profileInitial');
+        const profileName = document.getElementById('profileName');
         
-        let calendar;
-
-        function showSection(sectionId) {
-            document.querySelectorAll('.section').forEach(section => {
-                section.classList.remove('active');
-            });
-            document.getElementById(sectionId).classList.add('active');
-            
-            if (sectionId === 'viewSection') {
-                loadBookings();
-                if (calendar) {
-                    calendar.refetchEvents();
-                }
-            }
-        }
-
-        function logout() {
-            localStorage.removeItem('username');
-            window.location.href = 'auth.html';
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeInterface();
-            loadBookings();
-            setMinDate();
-            handleDateInput();
-            initializeCalendar();
-            
-            // Set welcome message
-            const username = localStorage.getItem('username');
-            document.getElementById('welcomeMessage').textContent = `Welcome, ${username}!`;
+        //Load existing profile data from localStorage
+        loadProfileData();
+        
+        // Toggle dropdown visibility when profile button is clicked
+        profileButton.addEventListener('click', function() {
+            profileMenu.classList.toggle('hidden');
         });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            if (!profileButton.contains(event.target) && !profileMenu.contains(event.target)) {
+                profileMenu.classList.add('hidden');
+            }
+        });
+        
+        // Save profile data
+        saveProfileBtn.addEventListener('click', function() {
+            saveProfileData();
+            profileMenu.classList.add('hidden');
+        });
+        
+        // Connect logout button
+        logoutBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            logout();
+        });
+    }
 
-        function initializeInterface() {
-            document.getElementById('attendees').addEventListener('change', function() {
-                const selected = this.value;
-                const venueSelect = document.getElementById('venue');
-                venueSelect.innerHTML = '<option value="">Select Venue</option>';
-                if (venues[selected]) {
-                    venues[selected].forEach(venue => {
-                        venueSelect.innerHTML += `<option value="${venue}">${venue}</option>`;
-                    });
-                }
-            });
-            
-            document.getElementById('bookingForm').addEventListener('submit', function(event) {
-                event.preventDefault();
-                submitBookingForm();
-            });
+    function loadProfileData() {
+        const username = localStorage.getItem('username') || '';
+        const fullName = localStorage.getItem('fullName') || '';
+        const email = localStorage.getItem('email') || '';
+        
+        // Set form values
+        document.getElementById('profileUsername').value = username;
+        document.getElementById('profileFullName').value = fullName;
+        document.getElementById('profileEmail').value = email;
+        
+        // Update profile display
+        updateProfileDisplay(username, fullName);
+    }
 
-            document.getElementById('myBookingsOnly').addEventListener('change', loadBookings);
+    function saveProfileData() {
+        const fullName = document.getElementById('profileFullName').value;
+        const email = document.getElementById('profileEmail').value;
+        const username = localStorage.getItem('username');
+        
+        // Save to localStorage
+        localStorage.setItem('fullName', fullName);
+        localStorage.setItem('email', email);
+        
+        // Update display
+        updateProfileDisplay(username, fullName);
+        
+        // Show confirmation
+        alert('Profile updated successfully!');
+    }
+
+    function updateProfileDisplay(username, fullName) {
+        const profileInitial = document.getElementById('profileInitial');
+        const profileName = document.getElementById('profileName');
+        
+        // Set profile initial
+        if (fullName) {
+            profileInitial.textContent = fullName.charAt(0).toUpperCase();
+            profileName.textContent = fullName;
+        } else {
+            profileInitial.textContent = username.charAt(0).toUpperCase();
+            profileName.textContent = username;
         }
-
-        function submitBookingForm() {
-            const venue = document.getElementById('venue').value;
-            const date = document.getElementById('date').value;
-            const time = document.getElementById('time').value;
-            const username = localStorage.getItem('username');
-
-            fetch('http://localhost:3004/bookings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ venue, date, time, username })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(err => { throw err; });
-                }
-                return response.json();
-            })
-            .then(data => {
-                alert(data.message);
-                showSection('viewSection');
-                if (calendar) {
-                    calendar.refetchEvents();
-                }
-            })
-            .catch(error => {
-                if (error.message) {
-                    alert(error.message);
-                } else {
-                    console.error('Error:', error);
-                    alert("An error occurred while booking the venue.");
-                }
-            });
+        
+        // Also update welcome message if it exists
+        const welcomeMessage = document.getElementById('welcomeMessage');
+        if (welcomeMessage) {
+            welcomeMessage.textContent = `Welcome, ${fullName || username}!`;
         }
+    }
 
-        function deleteBooking(id) {
-            const username = localStorage.getItem('username');
-            fetch(`http://localhost:3004/bookings/${id}?username=${username}`, {
-                method: 'DELETE'
-            })
-            .then(response => response.json())
-            .then(data => {
-                alert(data.message);
-                loadBookings();
-                if (calendar) {
-                    calendar.refetchEvents();
-                }
-            })
-            .catch(error => console.error('Error:', error));
-        }
+    function showSection(sectionId) {
+        document.querySelectorAll('.section').forEach(section => {
+            section.classList.remove('active');
+        });
+        document.getElementById(sectionId).classList.add('active');
 
-        function loadBookings() {
-            const username = localStorage.getItem('username');
-            const myBookingsOnly = document.getElementById('myBookingsOnly').checked;
-            
-            const url = myBookingsOnly 
-                ? `http://localhost:3004/bookings?username=${username}`
-                : 'http://localhost:3004/bookings';
-                
-            fetch(url)
-                .then(response => response.json())
-                .then(data => {
-                    const list = document.getElementById('bookingsList');
-                    list.innerHTML = '';
-                    
-                    if (data.length === 0) {
-                        list.innerHTML = '<li class="py-4 text-center text-gray-500">No bookings found</li>';
-                        return;
-                    }
-                    
-                    data.forEach(booking => {
-                        const startParts = booking.start.split('T');
-                        const canDelete = booking.username === username;
-                        
-                        list.innerHTML += `
-                            <li class="py-4 flex justify-between items-center">
-                                <div>
-                                    <h3 class="text-lg font-medium text-gray-900">${booking.title}</h3>
-                                    <p class="text-sm text-gray-500">${startParts[0]} at ${startParts[1]}</p>
-                                    ${!myBookingsOnly ? `<p class="text-xs text-gray-400">Booked by: ${booking.username}</p>` : ''}
-                                </div>
-                                ${canDelete ? `
-                                    <button onclick="deleteBooking(${booking.id})" 
-                                            class="bg-red-600 text-white px-3 py-1 rounded-md hover:bg-red-700">
-                                        Delete
-                                    </button>
-                                ` : ''}
-                            </li>`;
-                    });
-                })
-                .catch(error => console.error('Error:', error));
-        }
-
-        function initializeCalendar() {
-            var calendarEl = document.getElementById('calendar');
-            calendar = new FullCalendar.Calendar(calendarEl, {
-                initialView: 'dayGridMonth',
-                height: 450,
-                headerToolbar: {
-                    left: 'prev,next today',
-                    center: 'title',
-                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
-                },
-                events: async function(fetchInfo, successCallback, failureCallback) {
-                    try {
-                        const username = localStorage.getItem('username');
-                        const myBookingsOnly = document.getElementById('myBookingsOnly').checked;
-                        const url = myBookingsOnly 
-                            ? `http://localhost:3004/bookings?username=${username}`
-                            : 'http://localhost:3004/bookings';
-                        
-                        let response = await fetch(url);
-                        let events = await response.json();
-                        successCallback(events);
-                    } catch (error) {
-                        failureCallback(error);
-                    }
-                },
-            });
-            calendar.render();
-        }
-
-        function setMinDate() {
-            const dateInput = document.getElementById('date');
-            const today = new Date();
-            const todayFormatted = today.toISOString().split('T')[0];
-            dateInput.setAttribute('min', todayFormatted);
-            dateInput.value = todayFormatted;
-        }
-
-        function handleDateInput() {
-            const dateInput = document.getElementById('date');
-            
-            const today = new Date();
-            const todayFormatted = today.toISOString().split('T')[0];
-            dateInput.setAttribute('min', todayFormatted);
-            
-            dateInput.addEventListener('change', function() {
-                const selectedDate = new Date(this.value);
-                selectedDate.setHours(0, 0, 0, 0);
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                
-                if (selectedDate < today) {
-                    alert("Please select a date from today onwards.");
-                    this.value = todayFormatted;
-                }
-            });
-        }
-
-        // Calendar event handlers
-        document.addEventListener('fullcalendar_events_update', function() {
+        if (sectionId === 'viewSection') {
+            loadBookings();
             if (calendar) {
                 calendar.refetchEvents();
             }
+        }
+    }
+
+    function logout() {
+        // Clear all localStorage data
+        localStorage.clear();
+        window.location.href = 'auth.html';
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeProfile();
+        initializeInterface();
+        loadBookings();
+        setMinDate();
+        handleDateInput();
+        initializeCalendar();
+    });
+
+    function initializeInterface() {
+        document.getElementById('attendees').addEventListener('change', function() {
+            const selected = this.value;
+            const venueSelect = document.getElementById('venue');
+            venueSelect.innerHTML = '<option value="">Select Venue</option>';
+
+            // Show/hide speaker option based on attendee count
+            const speakerOption = document.getElementById('speakerOption');
+            if (selected === "100-150" || selected === "150-200" || selected === "200+") {
+                speakerOption.style.display = 'block';
+            } else {
+                speakerOption.style.display = 'none';
+                document.getElementById('speakerRequired').checked = false;
+            }
+
+            // Update venue dropdown
+            if (venues[selected]) {
+                venues[selected].forEach(venue => {
+                    venueSelect.innerHTML += `<option value="${venue.name}" data-has-projector="${venue.hasProjector}">
+                        ${venue.name} ${venue.hasProjector ? '(with Projector)' : ''}
+                    </option>`;
+                });
+            }
         });
 
-        // Automatically update bookings list and calendar periodically
-        setInterval(function() {
-            if (document.getElementById('viewSection').classList.contains('active')) {
-                loadBookings();
-                if (calendar) {
-                    calendar.refetchEvents();
+        // Filter venues when projector checkbox changes
+        document.getElementById('projectorRequired').addEventListener('change', function() {
+            filterVenuesByProjector();
+        });
+
+        document.getElementById('bookingForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            submitBookingForm();
+        });
+
+        document.getElementById('myBookingsOnly').addEventListener('change', loadBookings);
+    }
+
+    function filterVenuesByProjector() {
+        const projectorRequired = document.getElementById('projectorRequired').checked;
+        const attendees = document.getElementById('attendees').value;
+        const venueSelect = document.getElementById('venue');
+
+        // Save current selection if possible
+        const currentSelection = venueSelect.value;
+
+        venueSelect.innerHTML = '<option value="">Select Venue</option>';
+
+        if (venues[attendees]) {
+            venues[attendees].forEach(venue => {
+                if (!projectorRequired || venue.hasProjector) {
+                    venueSelect.innerHTML += `<option value="${venue.name}" data-has-projector="${venue.hasProjector}">
+                        ${venue.name} ${venue.hasProjector ? '(with Projector)' : ''}
+                    </option>`;
+                }
+            });
+        }
+
+        // Try to restore previous selection if it still exists
+        if (currentSelection) {
+            for (let i = 0; i < venueSelect.options.length; i++) {
+                if (venueSelect.options[i].value === currentSelection) {
+                    venueSelect.selectedIndex = i;
+                    break;
                 }
             }
-        }, 30000); // Update every 30 seconds
+        }
+    }
+
+    function submitBookingForm() {
+        const department = document.getElementById('department').value;
+        const title = document.getElementById('title').value;
+        const venue = document.getElementById('venue').value;
+        const date = document.getElementById('date').value;
+        const time = document.getElementById('time').value;
+        const username = localStorage.getItem('username');
+        const projectorRequired = document.getElementById('projectorRequired').checked;
+        const speakerRequired = document.getElementById('speakerOption').style.display !== 'none' ? 
+                                document.getElementById('speakerRequired').checked : false;
+
+        fetch('http://localhost:3004/api/bookings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                title, 
+                venue, 
+                date, 
+                time, 
+                username,
+                department,
+                projectorRequired,
+                speakerRequired
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { throw err; });
+            }
+            return response.json();
+        })
+        .then(data => {
+            alert(data.message);
+            showSection('viewSection');
+            if (calendar) {
+                calendar.refetchEvents();
+            }
+        })
+        .catch(error => {
+            if (error.message) {
+                alert(error.message);
+            } else {
+                console.error('Error:', error);
+                alert("An error occurred while booking the venue.");
+            }
+        });
+    }
+
+    function deleteBooking(id) {
+        const username = localStorage.getItem('username');
+        fetch(`http://localhost:3004/api/bookings/${id}?username=${username}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.message);
+            loadBookings();
+            if (calendar) {
+                calendar.refetchEvents();
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+
+    function loadBookings() {
+        const username = localStorage.getItem('username');
+        const myBookingsOnly = document.getElementById('myBookingsOnly').checked;
+
+        const url = myBookingsOnly 
+            ? `http://localhost:3004/api/bookings?username=${username}`
+            : 'http://localhost:3004/api/bookings';
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                const list = document.getElementById('bookingsList');
+                list.innerHTML = '';
+
+                if (data.length === 0) {
+                    list.innerHTML = '<li class="py-4 text-center text-gray-500">No bookings found</li>';
+                    return;
+                }
+
+                data.forEach(booking => {
+                    const startParts = booking.start.split('T');
+                    const canDelete = booking.username === username;
+                    const bookingTitle = booking.title || "Untitled Booking"; // Fallback if title is missing
+                    const venue = booking.venue || ""; // Add venue if available
+                    const department = booking.department || ""; // Display department information
+
+                    list.innerHTML += `
+                        <li class="py-4 flex justify-between items-center">
+                            <div>
+                                <h3 class="text-lg font-medium text-gray-900">${bookingTitle}</h3>
+                                <p class="text-sm text-gray-500">
+                                    ${startParts[0]} at ${startParts[1]} 
+                                    ${venue ? `| Venue: ${venue}` : ''}
+                                    ${department ? `| Department: ${department}` : ''}
+                                </p>
+                                ${!myBookingsOnly ? `<p class="text-xs text-gray-400">Booked by: ${booking.bookedBy || 'Unknown'}</p>` : ''}
+                            </div>
+                            ${canDelete ? `
+                                <button onclick="deleteBooking(${booking.id})" 
+                                        class="bg-red-600 text-white px-3 py-1 rounded-md hover:bg-red-700">
+                                    Delete
+                                </button>
+                            ` : ''}
+                        </li>`;
+                });
+            })
+            .catch(error => console.error('Error:', error));
+    }
+
+    function initializeCalendar() {
+        var calendarEl = document.getElementById('calendar');
+        calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            height: 450,
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            },
+            events: async function(fetchInfo, successCallback, failureCallback) {
+                try {
+                    const username = localStorage.getItem('username');
+                    const myBookingsOnly = document.getElementById('myBookingsOnly').checked;
+                    const url = myBookingsOnly 
+                        ? `http://localhost:3004/api/bookings?username=${username}`
+                        : 'http://localhost:3004/api/bookings';
+
+                    let response = await fetch(url);
+                    let bookings = await response.json();
+
+                    // Transform bookings to ensure each has a properly formatted title
+                    const events = bookings.map(booking => {
+                        return {
+                            id: booking.id,
+                            title: booking.title || "Untitled Booking", // Ensure title is set
+                            start: booking.start,
+                            username: booking.username,
+                            venue: booking.venue,
+                            department: booking.department,
+                            // You can add custom styling for events here
+                            backgroundColor: booking.bookedBy === username ? '#4F46E5' : '#9CA3AF'
+                        };
+                    });
+
+                    successCallback(events);
+                } catch (error) {
+                    failureCallback(error);
+                }
+            },
+            eventDidMount: function(info) {
+                // Add venue and department information to the tooltip
+                let tooltipContent = info.event.title;
+                if (info.event.extendedProps.venue) {
+                    tooltipContent += ` (${info.event.extendedProps.venue})`;
+                }
+                if (info.event.extendedProps.department) {
+                    tooltipContent += ` - ${info.event.extendedProps.department}`;
+                }
+                info.el.title = tooltipContent;
+            }
+        });
+        calendar.render();
+    }
+
+    function setMinDate() {
+        const dateInput = document.getElementById('date');
+        const today = new Date();
+        const todayFormatted = today.toISOString().split('T')[0];
+        dateInput.setAttribute('min', todayFormatted);
+        dateInput.value = todayFormatted;
+    }
+
+    function handleDateInput() {
+        const dateInput = document.getElementById('date');
+
+        const today = new Date();
+        const todayFormatted = today.toISOString().split('T')[0];
+        dateInput.setAttribute('min', todayFormatted);
+
+        dateInput.addEventListener('change', function() {
+            const selectedDate = new Date(this.value);
+            selectedDate.setHours(0, 0, 0, 0);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            if (selectedDate < today) {
+                alert("Please select a date from today onwards.");
+                this.value = todayFormatted;
+            }
+        });
+    }
+
+    // Calendar event handlers
+    document.addEventListener('fullcalendar_events_update', function() {
+        if (calendar) {
+            calendar.refetchEvents();
+        }
+    });
+
+    // Automatically update bookings list and calendar periodically
+    setInterval(function() {
+        if (document.getElementById('viewSection').classList.contains('active')) {
+            loadBookings();
+            if (calendar) {
+                calendar.refetchEvents();
+            }
+        }
+    }, 30000); // Update every 30 seconds
     </script>
 </body>
 </html>

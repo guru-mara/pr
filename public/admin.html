@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Venue Management</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <style>
+        .section {
+            display: none;
+        }
+        
+        .section.active {```javascript
+// Users Management
+function fetchUsers() {
+    fetch("http://localhost:3004/api/users")
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to fetch users');
+            }
+            return response.json();
+        })
+        .then(users => {
+            renderUsers(users);
+        })
+        .catch(error => {
+            console.error('Error fetching users:', error);
+            alert('Failed to load users. Please try again later.');
+        });
+}
+
+function renderUsers(users) {
+    const usersList = document.getElementById("users-list");
+    usersList.innerHTML = "";
+
+    if (users.length === 0) {
+        usersList.innerHTML = `
+            <tr>
+                <td colspan="5" class="px-6 py-4 text-center text-gray-500">No users found</td>
+            </tr>`;
+        return;
+    }
+
+    users.forEach(user => {
+        usersList.innerHTML += `
+            <tr>
+                <td class="px-6 py-4 whitespace-nowrap">${user.name}</td>
+                <td class="px-6 py-4 whitespace-nowrap">${user.email}</td>
+                <td class="px-6 py-4 whitespace-nowrap">${user.isAdmin ? 'Admin' : 'User'}</td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                        ${user.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                        ${user.active ? 'Active' : 'Inactive'}
+                    </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button onclick="toggleUserStatus(${user.id})" class="text-indigo-600 hover:text-indigo-900 mr-2">
+                        ${user.active ? 'Deactivate' : 'Activate'}
+                    </button>
+                    <button onclick="deleteUser(${user.id})" class="text-red-600 hover:text-red-900">
+                        Delete
+                    </button>
+                </td>
+            </tr>`;
+    });
+}
+
+function addUser() {
+    const name = document.getElementById('user-name').value;
+    const email = document.getElementById('user-email').value;
+    const password = document.getElementById('user-password').value;
+    const isAdmin = document.getElementById('user-role').value === 'admin';
+
+    fetch("http://localhost:3004/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password, isAdmin, active: true })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to create user');
+        }
+        return response.json();
+    })
+    .then(() => {
+        hideModal('addUserModal');
+        document.getElementById('addUserForm').reset();
+        fetchUsers();
+        alert('User created successfully');
+    })
+    .catch(error => {
+        console.error('Error creating user:', error);
+        alert('Failed to create user. Please try again.');
+    });
+}
+
+function toggleUserStatus(userId) {
+    fetch(`http://localhost:3004/api/users/${userId}/toggle-status`, {
+        method: "PUT"
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to update user status');
+        }
+        return response.json();
+    })
+    .then(() => {
+        fetchUsers();
+    })
+    .catch(error => {
+        console.error('Error updating user status:', error);
+        alert('Failed to update user status. Please try again.');
+    });
+}
+
+function deleteUser(userId) {
+    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+        return;
+    }
+
+    fetch(`http://localhost:3004/api/users/${userId}`, { 
+        method: "DELETE" 
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to delete user');
+        }
+        return response.json();
+    })
+    .then(() => {
+        fetchUsers();
+    })
+    .catch(error => {
+        console.error('Error deleting user:', error);
+        alert('Failed to delete user. Please try again.');
+    });
+}
+
+// Bookings Management
+function fetchBookings() {
+    fetch("http://localhost:3004/api/bookings")
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to fetch bookings');
+            }
+            return response.json();
+        })
+        .then(bookings => {
+            renderBookings(bookings);
+        })
+        .catch(error => {
+            console.error('Error fetching bookings:', error);
+            alert('Failed to load bookings. Please try again later.');
+        });
+}
+
+function renderBookings(bookings) {
+    const bookingsList = document.getElementById("bookings-list");
+    bookingsList.innerHTML = "";
+
+    if (bookings.length === 0) {
+        bookingsList.innerHTML = `
+            <tr>
+                <td colspan="5" class="px-6 py-4 text-center text-gray-500">No bookings found</td>
+            </tr>`;
+        return;
+    }
+
+    bookings.forEach(booking => {
+        const dateParts = booking.date ? booking.date.split('T')[0] : '';
+        const timePart = booking.time || '';
+
+        bookingsList.innerHTML += `
+            <tr>
+                <td class="px-6 py-4 whitespace-nowrap">${booking.title || 'Untitled'}</td>
+                <td class="px-6 py-4 whitespace-nowrap">${booking.venue || 'N/A'}</td>
+                <td class="px-6 py-4 whitespace-nowrap">${dateParts} ${timePart}</td>
+                <td class="px-6 py-4 whitespace-nowrap">${booking.username || 'Unknown'}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button onclick="deleteBooking(${booking.id})" class="text-red-600 hover:text-red-900">
+                        Delete
+                    </button>
+                </td>
+            </tr>`;
+    });
+}
+
+function filterBookings() {
+    const filterDate = document.getElementById('filter-date').value;
+
+    fetch(`http://localhost:3004/api/bookings?date=${filterDate}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to filter bookings');
+            }
+            return response.json();
+        })
+        .then(bookings => {
+            renderBookings(bookings);
+        })
+        .catch(error => {
+            console.error('Error filtering bookings:', error);
+            alert('Failed to filter bookings. Please try again.');
+        });
+}
+
+function deleteBooking(bookingId) {
+    if (!confirm('Are you sure you want to delete this booking? This action cannot be undone.')) {
+        return;
+    }
+
+    fetch(`http://localhost:3004/api/bookings/${bookingId}`, { 
+        method: "DELETE" 
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to delete booking');
+        }
+        return response.json();
+    })
+    .then(() => {
+        fetchBookings();
+    })
+    .catch(error => {
+        console.error('Error deleting booking:', error);
+        alert('Failed to delete booking. Please try again.');
+    });
+}
+
+// Venues Management
+function fetchVenues() {
+    fetch("http://localhost:3004/api/venues")
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to fetch venues');
+            }
+            return response.json();
+        })
+        .then(venues => {
+            renderVenues(venues);
+        })
+        .catch(error => {
+            console.error('Error fetching venues:', error);
+            alert('Failed to load venues. Please try again later.');
+        });
+}
+
+function renderVenues(venues) {
+    const venuesList = document.getElementById("venues-list");
+    venuesList.innerHTML = "";
+
+    if (venues.length === 0) {
+        venuesList.innerHTML = `
+            <tr>
+                <td colspan="4" class="px-6 py-4 text-center text-gray-500">No venues found</td>
+            </tr>`;
+        return;
+    }
+
+    venues.forEach(venue => {
+        const equipment = [];
+        if (venue.hasProjector) equipment.push('Projector');
+        if (venue.hasSpeaker) equipment.push('Speaker System');
+
+        venuesList.innerHTML += `
+            <tr>
+                <td class="px-6 py-4 whitespace-nowrap">${venue.name}</td>
+                <td class="px-6 py-4 whitespace-nowrap">${venue.capacity || 'N/A'}</td>
+                <td class="px-6 py-4 whitespace-nowrap">${equipment.length ? equipment.join(', ') : 'None'}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button onclick="editVenue(${venue.id})" class="text-indigo-600 hover:text-indigo-900 mr-2">
+                        Edit
+                    </button>
+                    <button onclick="deleteVenue(${venue.id})" class="text-red-600 hover:text-red-900">
+                        Delete
+                    </button>
+                </td>
+            </tr>`;
+    });
+}
+
+function addVenue() {
+    const name = document.getElementById('venue-name').value;
+    const capacity = document.getElementById('venue-capacity').value;
+    const hasProjector = document.getElementById('venue-has-projector').checked;
+    const hasSpeaker = document.getElementById('venue-has-speaker').checked;
+
+    fetch("http://localhost:3004/api/venues", {
+        method: "POST",
+        headers:
+            display: block;
+        }
+        
+        .menu-card {
+            transition: transform 0.2s;
+        }
+        
+        .menu-card:hover {
+            transform: translateY(-5px);
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <script>
+    (function() {
+        const username = localStorage.getItem('username');
+        const isAdmin = localStorage.getItem('isAdmin') === 'true';
+        if (!username || !isAdmin) {
+            console.log("Not an admin user, redirecting to auth page");
+            window.location.href = 'auth.html';
+        }
+    })();
+    </script>
+
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">
+                Venue Management Admin Panel
+            </h1>
+            <div>
+                <button onclick="window.location.href='index.html'" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 mr-2">
+                    Main App
+                </button>
+                <button onclick="logout()" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">
+                    Logout
+                </button>
+            </div>
+        </div>
+
+        <div class="text-center text-gray-600 mb-8" id="welcomeMessage"></div>
+
+        <!-- Main Menu Section -->
+        <div id="menuSection" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="menu-card bg-white rounded-lg shadow-lg p-6 cursor-pointer" onclick="showSection('usersSection')">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4">User Management</h2>
+                <p class="text-gray-600">Manage system users</p>
+            </div>
+            <div class="menu-card bg-white rounded-lg shadow-lg p-6 cursor-pointer" onclick="showSection('bookingsSection')">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4">Booking Management</h2>
+                <p class="text-gray-600">View and manage all venue bookings</p>
+            </div>
+            <div class="menu-card bg-white rounded-lg shadow-lg p-6 cursor-pointer" onclick="showSection('venuesSection')">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4">Venue Management</h2>
+                <p class="text-gray-600">Add, edit, or remove venues</p>
+            </div>
+        </div>
+
+        <!-- Users Section -->
+        <div id="usersSection" class="section">
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-semibold text-gray-800">User Management</h2>
+                    <button onclick="showModal('addUserModal')" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+                        Add New User
+                    </button>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-list" class="bg-white divide-y divide-gray-200">
+                            <!-- User rows will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bookings Section -->
+        <div id="bookingsSection" class="section">
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-semibold text-gray-800">Booking Management</h2>
+                    <div class="flex items-center">
+                        <input type="date" id="filter-date" class="form-input mr-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <button onclick="filterBookings()" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
+                            Filter
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Venue</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date & Time</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Booked By</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bookings-list" class="bg-white divide-y divide-gray-200">
+                            <!-- Booking rows will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Venues Section -->
+        <div id="venuesSection" class="section">
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-semibold text-gray-800">Venue Management</h2>
+                    <button onclick="showModal('addVenueModal')" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+                        Add New Venue
+                    </button>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Capacity</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Equipment</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="venues-list" class="bg-white divide-y divide-gray-200">
+                            <!-- Venue rows will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add User Modal -->
+        <div id="addUserModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center hidden">
+            <div class="bg-white rounded-lg p-6 max-w-md w-full">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Add New User</h3>
+                <form id="addUserForm" class="space-y-4">
+                    <div>
+                        <label for="user-name" class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                        <input type="text" id="user-name" class="form-input block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                    </div>
+                    <div>
+                        <label for="user-email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input type="email" id="user-email" class="form-input block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                    </div>
+                    <div>
+                        <label for="user-password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                        <input type="password" id="user-password" class="form-input block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                    </div>
+                    <div>
+                        <label for="user-role" class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                        <select id="user-role" class="form-select block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="user">User</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <div class="flex justify-end space-x-3 pt-4">
+                        <button type="button" onclick="hideModal('addUserModal')" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300">
+                            Cancel
+                        </button>
+                        <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
+                            Add User
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Add Venue Modal -->
+        <div id="addVenueModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center hidden">
+            <div class="bg-white rounded-lg p-6 max-w-md w-full">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Add New Venue</h3>
+                <form id="addVenueForm" class="space-y-4">
+                    <div>
+                        <label for="venue-name" class="block text-sm font-medium text-gray-700 mb-1">Venue Name</label>
+                        <input type="text" id="venue-name" class="form-input block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                    </div>
+                    <div>
+                        <label for="venue-capacity" class="block text-sm font-medium text-gray-700 mb-1">Capacity</label>
+                        <select id="venue-capacity" class="form-select block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="0-50">0-50</option>
+                            <option value="50-100">50-100</option>
+                            <option value="100-150">100-150</option>
+                            <option value="150-200">150-200</option>
+                            <option value="200+">200+</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Equipment</label>
+                        <div class="flex flex-col space-y-2">
+                            <label class="inline-flex items-center">
+                                <input type="checkbox" id="venue-has-projector" class="form-checkbox h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                                <span class="ml-2 text-sm text-gray-700">Projector</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="checkbox" id="venue-has-speaker" class="form-checkbox h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                                <span class="ml-2 text-sm text-gray-700">Speaker System</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="flex justify-end space-x-3 pt-4">
+                        <button type="button" onclick="hideModal('addVenueModal')" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300">
+                            Cancel
+                        </button>
+                        <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
+                            Add Venue
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            // Set welcome message
+            const username = localStorage.getItem('username');
+            document.getElementById('welcomeMessage').textContent = `Welcome, ${username} (Administrator)`;
+
+            // Show the menu section by default
+            showSection('usersSection');
+            
+            // Initialize date filter with today's date
+            const today = new Date();
+            document.getElementById('filter-date').value = today.toISOString().split('T')[0];
+            
+            // Initialize data
+            fetchUsers();
+            fetchBookings();
+            fetchVenues();
+            
+            // Add form event listeners
+            document.getElementById('addUserForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                addUser();
+            });
+            
+            document.getElementById('addVenueForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                addVenue();
+            });
+        });
+        
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.getElementById(sectionId).classList.add('active');
+        }
+        
+        function showModal(modalId) {
+            document.getElementById(modalId).classList.remove('hidden');
+        }
+        
+        function hideModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+        
+        function logout() {
+            localStorage.removeItem('username');
+            localStorage.removeItem('isAdmin');
+            window.location.href = 'auth.html';
+        }
+        
+        // Users Management
+        function fetchUsers() {
+            fetch("http://localhost:3004/api/users")
+                .then(response => response.json())
+                .then(users => {
+                    const usersList = document.getElementById("users-list");
+                    usersList.innerHTML = "";
+                    
+                    if (users.length === 0) {
+                        usersList.innerHTML = `
+                            <tr>
+                                <td colspan="5" class="px-6 py-4 text-center text-gray-500">No users found</td>
+                            </tr>`;
+                        return;
+                    }
+                    
+                    users.forEach(user => {
+                        usersList.innerHTML += `
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap">${user.name}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">${user.email}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">${user.isAdmin ? 'Admin' : 'User'}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                        ${user.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                        ${user.active ? 'Active' : 'Inactive'}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <button onclick="toggleUserStatus(${user.id})" class="text-indigo-600 hover:text-indigo-900 mr-2">
+                                        ${user.active ? 'Deactivate' : 'Activate'}
+                                    </button>
+                                    <button onclick="deleteUser(${user.id})" class="text-red-600 hover:text-red-900">
+                                        Delete
+                                    </button>
+                                </td>
+                            </tr>`;
+                    });
+                })
+                .catch(error => {
+                    console.error('Error fetching users:', error);
+                    alert('Failed to load users. Please try again later.');
+                });
+        }
+        
+        function addUser() {
+            const name = document.getElementById('user-name').value;
+            const email = document.getElementById('user-email').value;
+            const password = document.getElementById('user-password').value;
+            const isAdmin = document.getElementById('user-role').value === 'admin';
+            
+            fetch("http://localhost:3004/api/users", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name, email, password, isAdmin, active: true })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to create user');
+                }
+                return response.json();
+            })
+            .then(() => {
+                hideModal('addUserModal');
+                document.getElementById('addUserForm').reset();
+                fetchUsers();
+                alert('User created successfully');
+            })
+            .catch(error => {
+                console.error('Error creating user:', error);
+                alert('Failed to create user. Please try again.');
+            });
+        }
+        
+        function toggleUserStatus(userId) {
+            fetch(`http://localhost:3004/api/users/${userId}/toggle-status`, {
+                method: "PUT"
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to update user status');
+                }
+                return response.json();
+            })
+            .then(() => {
+                fetchUsers();
+            })
+            .catch(error => {
+                console.error('Error updating user status:', error);
+                alert('Failed to update user status. Please try again.');
+            });
+        }
+        
+        function deleteUser(userId) {
+            if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+                return;
+            }
+            
+            fetch(`http://localhost:3004/api/users/${userId}`, { 
+                method: "DELETE" 
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to delete user');
+                }
+                return response.json();
+            })
+            .then(() => {
+                fetchUsers();
+            })
+            .catch(error => {
+                console.error('Error deleting user:', error);
+                alert('Failed to delete user. Please try again.');
+            });
+        }
+        
+        // Bookings Management
+        function fetchBookings() {
+            fetch("http://localhost:3004/api/bookings")
+                .then(response => response.json())
+                .then(bookings => {
+                    renderBookings(bookings);
+                })
+                .catch(error => {
+                    console.error('Error fetching bookings:', error);
+                    alert('Failed to load bookings. Please try again later.');
+                });
+        }
+        
+        function renderBookings(bookings) {
+            const bookingsList = document.getElementById("bookings-list");
+            bookingsList.innerHTML = "";
+            
+            if (bookings.length === 0) {
+                bookingsList.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="px-6 py-4 text-center text-gray-500">No bookings found</td>
+                    </tr>`;
+                return;
+            }
+            
+            bookings.forEach(booking => {
+                const dateParts = booking.date ? booking.date.split('T')[0] : '';
+                const timePart = booking.time || '';
+                
+                bookingsList.innerHTML += `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">${booking.title || 'Untitled'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${booking.venue || 'N/A'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${dateParts} ${timePart}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${booking.username || 'Unknown'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button onclick="deleteBooking(${booking.id})" class="text-red-600 hover:text-red-900">
+                                Delete
+                            </button>
+                        </td>
+                    </tr>`;
+            });
+        }
+        
+        function filterBookings() {
+            const filterDate = document.getElementById('filter-date').value;
+            
+            fetch(`http://localhost:3004/api/bookings?date=${filterDate}`)
+                .then(response => response.json())
+                .then(bookings => {
+                    renderBookings(bookings);
+                })
+                .catch(error => {
+                    console.error('Error filtering bookings:', error);
+                    alert('Failed to filter bookings. Please try again.');
+                });
+        }
+        
+        function deleteBooking(bookingId) {
+            if (!confirm('Are you sure you want to delete this booking? This action cannot be undone.')) {
+                return;
+            }
+            
+            fetch(`http://localhost:3004/api/bookings/${bookingId}`, { 
+                method: "DELETE" 
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to delete booking');
+                }
+                return response.json();
+            })
+            .then(() => {
+                fetchBookings();
+            })
+            .catch(error => {
+                console.error('Error deleting booking:', error);
+                alert('Failed to delete booking. Please try again.');
+            });
+        }
+        
+        // Venues Management
+        function fetchVenues() {
+            fetch("http://localhost:3004/api/venues")
+                .then(response => response.json())
+                .then(venues => {
+                    const venuesList = document.getElementById("venues-list");
+                    venuesList.innerHTML = "";
+                    
+                    if (venues.length === 0) {
+                        venuesList.innerHTML = `
+                            <tr>
+                                <td colspan="4" class="px-6 py-4 text-center text-gray-500">No venues found</td>
+                            </tr>`;
+                        return;
+                    }
+                    
+                    venues.forEach(venue => {
+                        const equipment = [];
+                        if (venue.hasProjector) equipment.push('Projector');
+                        if (venue.hasSpeaker) equipment.push('Speaker System');
+                        
+                        venuesList.innerHTML += `
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap">${venue.name}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">${venue.capacity || 'N/A'}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">${equipment.length ? equipment.join(', ') : 'None'}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <button onclick="editVenue(${venue.id})" class="text-indigo-600 hover:text-indigo-900 mr-2">
+                                        Edit
+                                    </button>
+                                    <button onclick="deleteVenue(${venue.id})" class="text-red-600 hover:text-red-900">
+                                        Delete
+                                    </button>
+                                </td>
+                            </tr>`;
+                    });
+                })
+                .catch(error => {
+                    console.error('Error fetching venues:', error);
+                    alert('Failed to load venues. Please try again later.');
+                });
+        }
+        
+        function addVenue() {
+            const name = document.getElementById('venue-name').value;
+            const capacity = document.getElementById('venue-capacity').value;
+            const hasProjector = document.getElementById('venue-has-projector').checked;
+            const hasSpeaker = document.getElementById('venue-has-speaker').checked;
+            
+            fetch("http://localhost:3004/api/venues", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name, capacity, hasProjector, hasSpeaker })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to create venue');
+                }
+                return response.json();
+            })
+            .then(() => {
+                hideModal('addVenueModal');
+                document.getElementById('addVenueForm').reset();
+                fetchVenues();
+                alert('Venue created successfully');
+            })
+            .catch(error => {
+                console.error('Error creating venue:', error);
+                alert('Failed to create venue. Please try again.');
+            });
+        }
+        
+        function editVenue(venueId) {
+            // This would typically fetch the venue details and populate a modal form
+            // For simplicity, we'll just alert that this feature is not implemented
+            alert('Edit venue feature is not implemented in this demo');
+        }
+        
+        function deleteVenue(venueId) {
+            if (!confirm('Are you sure you want to delete this venue? This action cannot be undone.')) {
+                return;
+            }
+            
+            fetch(`http://localhost:3004/api/venues/${venueId}`, { 
+                method: "DELETE" 
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to delete venue');
+                }
+                return response.json();
+            })
+            .then(() => {
+                fetchVenues();
+            })
+            .catch(error => {
+                console.error('Error deleting venue:', error);
+                alert('Failed to delete venue. Please try again.');
+            });
+        }
+    </script>
+</body>
+</html>
