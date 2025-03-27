@@ -31,7 +31,8 @@ const createUsersTable = async (conn) => {
     await conn.query(`CREATE TABLE IF NOT EXISTS users (
         id INT AUTO_INCREMENT PRIMARY KEY,
         username VARCHAR(255) NOT NULL UNIQUE,
-        password VARCHAR(255) NOT NULL
+        password VARCHAR(255) NOT NULL,
+        active BOOLEAN DEFAULT TRUE
     )`);
 };
 
@@ -50,6 +51,18 @@ const createBookingsTable = async (conn) => {
     )`);
 };
 
+// Create venues table if it doesn't exist
+const createVenuesTable = async (conn) => {
+    await conn.query(`CREATE TABLE IF NOT EXISTS venues (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL UNIQUE,
+        capacity VARCHAR(20),
+        hasProjector BOOLEAN DEFAULT false,
+        hasSpeaker BOOLEAN DEFAULT false,
+        status ENUM('available', 'unavailable') NOT NULL DEFAULT 'available'
+    )`);
+};
+
 // Initialize Database Tables
 (async () => {
     let conn;
@@ -57,6 +70,20 @@ const createBookingsTable = async (conn) => {
         conn = await pool.getConnection();
         await createUsersTable(conn);
         await createBookingsTable(conn);
+        await createVenuesTable(conn);
+        
+        // Update schema if needed
+        try {
+            await conn.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS active BOOLEAN DEFAULT TRUE");
+            await conn.query("ALTER TABLE venues ADD COLUMN IF NOT EXISTS capacity VARCHAR(20)");
+            await conn.query("ALTER TABLE venues ADD COLUMN IF NOT EXISTS hasProjector BOOLEAN DEFAULT false");
+            await conn.query("ALTER TABLE venues ADD COLUMN IF NOT EXISTS hasSpeaker BOOLEAN DEFAULT false");
+            console.log("Database schema updated successfully.");
+        } catch (err) {
+            console.error('Schema update error:', err);
+            // Continue execution as this is just a precaution
+        }
+        
         console.log("Database tables initialized successfully.");
     } catch (err) {
         console.error('Database setup error:', err);
@@ -186,6 +213,7 @@ app.post('/api/bookings', async (req, res) => {
 app.delete('/api/bookings/:id', async (req, res) => {
     const bookingId = req.params.id;
     const username = req.query.username;
+    const isAdmin = req.query.isAdmin === 'true';
     
     if (!username) {
         return res.status(400).json({ message: "Username is required" });
@@ -195,17 +223,34 @@ app.delete('/api/bookings/:id', async (req, res) => {
     try {
         conn = await pool.getConnection();
 
-        const existing = await conn.query(
-            "SELECT * FROM bookings WHERE id = ? AND username = ?", 
-            [bookingId, username]
-        );
-        
-        if (existing.length === 0) {
-            return res.status(403).json({ message: "Booking not found or you don't have permission to delete it." });
-        }
+        // If admin, allow deletion of any booking
+        if (isAdmin) {
+            // Just check if the booking exists
+            const bookingExists = await conn.query(
+                "SELECT * FROM bookings WHERE id = ?", 
+                [bookingId]
+            );
+            
+            if (bookingExists.length === 0) {
+                return res.status(404).json({ message: "Booking not found." });
+            }
+            
+            await conn.query("DELETE FROM bookings WHERE id = ?", [bookingId]);
+            return res.json({ message: "Booking deleted successfully by admin." });
+        } else {
+            // For regular users, check if they own the booking
+            const existing = await conn.query(
+                "SELECT * FROM bookings WHERE id = ? AND username = ?", 
+                [bookingId, username]
+            );
+            
+            if (existing.length === 0) {
+                return res.status(403).json({ message: "Booking not found or you don't have permission to delete it." });
+            }
 
-        await conn.query("DELETE FROM bookings WHERE id = ? AND username = ?", [bookingId, username]);
-        res.json({ message: "Booking deleted successfully." });
+            await conn.query("DELETE FROM bookings WHERE id = ? AND username = ?", [bookingId, username]);
+            res.json({ message: "Booking deleted successfully." });
+        }
     } catch (err) {
         console.error('Delete booking error:', err);
         res.status(500).json({ message: "Error deleting booking", error: err.message });
@@ -249,7 +294,7 @@ app.get('/api/bookings', async (req, res) => {
             venue: b.venue,
             start: `${b.date}T${b.time}`,
             time: b.time,
-            bookedBy: b.username
+            username: b.username
         }));
 
         // For debugging - log what's being sent to frontend
@@ -270,7 +315,7 @@ app.get('/api/users', async (req, res) => {
     let conn;
     try {
         conn = await pool.getConnection();
-        const users = await conn.query("SELECT username, 'user' as role FROM users");
+        const users = await conn.query("SELECT username, id, active FROM users");
         res.json(users);
     } catch (err) {
         console.error('Get users error:', err);
@@ -312,31 +357,41 @@ app.delete('/api/users/:username', async (req, res) => {
     }
 });
 
-// Create venues table if it doesn't exist
-const createVenuesTable = async (conn) => {
-    await conn.query(`CREATE TABLE IF NOT EXISTS venues (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        name VARCHAR(255) NOT NULL UNIQUE,
-        status ENUM('available', 'unavailable') NOT NULL DEFAULT 'available'
-    )`);
-};
-
-// Initialize venues table
-(async () => {
+// Toggle user status endpoint
+app.put('/api/users/:username/toggle-status', async (req, res) => {
+    const username = req.params.username;
+    
     let conn;
     try {
         conn = await pool.getConnection();
-        await createVenuesTable(conn);
-        console.log("Venues table initialized successfully.");
+        
+        // Check if user exists
+        const user = await conn.query("SELECT * FROM users WHERE username = ?", [username]);
+        
+        if (user.length === 0) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        
+        // Toggle the status (active/inactive)
+        const currentStatus = user[0].active === undefined ? true : !!user[0].active;
+        const newStatus = !currentStatus;
+        
+        await conn.query("UPDATE users SET active = ? WHERE username = ?", [newStatus, username]);
+        
+        res.json({ 
+            message: `User ${newStatus ? 'activated' : 'deactivated'} successfully`,
+            username,
+            active: newStatus
+        });
     } catch (err) {
-        console.error('Venues table setup error:', err);
+        console.error('Toggle user status error:', err);
+        res.status(500).json({ message: "Error toggling user status", error: err.message });
     } finally {
         if (conn) conn.release();
     }
-})();
+});
 
 // Add or update a venue
-// In the Node.js server code
 app.post('/api/venues', async (req, res) => {
     const { name, capacity, hasProjector, hasSpeaker } = req.body;
     
@@ -348,8 +403,8 @@ app.post('/api/venues', async (req, res) => {
     try {
         conn = await pool.getConnection();
         await conn.query(
-            "INSERT INTO venues (name, status, capacity, hasProjector, hasSpeaker) VALUES (?, ?, ?, ?, ?)", 
-            [name, 'available', capacity, hasProjector || false, hasSpeaker || false]
+            "INSERT INTO venues (name, capacity, hasProjector, hasSpeaker, status) VALUES (?, ?, ?, ?, ?)", 
+            [name, capacity || null, hasProjector || false, hasSpeaker || false, 'available']
         );
         res.json({ message: "Venue added successfully" });
     } catch (err) {
@@ -359,6 +414,7 @@ app.post('/api/venues', async (req, res) => {
         if (conn) conn.release();
     }
 });
+
 // Get all venues
 app.get('/api/venues', async (req, res) => {
     let conn;
@@ -369,6 +425,91 @@ app.get('/api/venues', async (req, res) => {
     } catch (err) {
         console.error('Get venues error:', err);
         res.status(500).json({ message: "Error fetching venues", error: err.message });
+    } finally {
+        if (conn) conn.release();
+    }
+});
+
+// Delete venue endpoint
+app.delete('/api/venues/:id', async (req, res) => {
+    const venueId = req.params.id;
+    
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        
+        // Check if venue exists
+        const venue = await conn.query("SELECT * FROM venues WHERE id = ?", [venueId]);
+        
+        if (venue.length === 0) {
+            return res.status(404).json({ message: "Venue not found" });
+        }
+        
+        // Check if venue is being used in any bookings
+        const bookings = await conn.query("SELECT COUNT(*) as count FROM bookings WHERE venue = ?", [venue[0].name]);
+        
+        if (bookings[0].count > 0) {
+            return res.status(400).json({ 
+                message: "Cannot delete venue as it has existing bookings. Delete the bookings first." 
+            });
+        }
+        
+        // Delete the venue
+        await conn.query("DELETE FROM venues WHERE id = ?", [venueId]);
+        
+        res.json({ message: "Venue deleted successfully" });
+    } catch (err) {
+        console.error('Delete venue error:', err);
+        res.status(500).json({ message: "Error deleting venue", error: err.message });
+    } finally {
+        if (conn) conn.release();
+    }
+});
+
+// Update venue endpoint
+app.put('/api/venues/:id', async (req, res) => {
+    const venueId = req.params.id;
+    const { name, capacity, hasProjector, hasSpeaker } = req.body;
+    
+    if (!name) {
+        return res.status(400).json({ message: "Venue name is required" });
+    }
+    
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        
+        // Check if venue exists
+        const venue = await conn.query("SELECT * FROM venues WHERE id = ?", [venueId]);
+        
+        if (venue.length === 0) {
+            return res.status(404).json({ message: "Venue not found" });
+        }
+        
+        // Update the venue
+        await conn.query(
+            "UPDATE venues SET name = ?, capacity = ?, hasProjector = ?, hasSpeaker = ? WHERE id = ?", 
+            [name, capacity, hasProjector || false, hasSpeaker || false, venueId]
+        );
+        
+        // If venue name has changed, update all bookings with this venue
+        if (name !== venue[0].name) {
+            await conn.query("UPDATE bookings SET venue = ? WHERE venue = ?", [name, venue[0].name]);
+        }
+        
+        res.json({ 
+            message: "Venue updated successfully",
+            venue: {
+                id: venueId,
+                name,
+                capacity,
+                hasProjector: hasProjector || false,
+                hasSpeaker: hasSpeaker || false
+            }
+        });
+    } catch (err) {
+        console.error('Update venue error:', err);
+        res.status(500).json({ message: "Error updating venue", error: err.message });
     } finally {
         if (conn) conn.release();
     }

@@ -1,4 +1,491 @@
-<!DOCTYPE html>
+<input type="checkbox" id="myBookingsOnly" class="mr-2">
+                    <label for="myBookingsOnly" class="text-sm text-gray-600">Show my bookings only</label>
+                </div>
+            </div>
+
+            <!-- Calendar view of bookings -->
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4">Calendar View</h2>
+                <div id="calendar"></div>
+            </div>
+            
+            <!-- List view of bookings -->
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-6">Upcoming Bookings</h2>
+                <!-- Dynamic list of bookings -->
+                <ul id="bookingsList" class="divide-y divide-gray-200"></ul>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Will be populated from server
+        let venues = {};
+
+        // Global calendar object
+        let calendar;
+
+        // Profile functionality
+        function initializeProfile() {
+            const profileButton = document.getElementById('profileButton');
+            const profileMenu = document.getElementById('profileMenu');
+            const saveProfileBtn = document.getElementById('saveProfileBtn');
+            const logoutBtn = document.getElementById('logoutBtn');
+            const profileInitial = document.getElementById('profileInitial');
+            const profileName = document.getElementById('profileName');
+            
+            //Load existing profile data from localStorage
+            loadProfileData();
+            
+            // Toggle dropdown visibility when profile button is clicked
+            profileButton.addEventListener('click', function() {
+                profileMenu.classList.toggle('hidden');
+            });
+            
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(event) {
+                if (!profileButton.contains(event.target) && !profileMenu.contains(event.target)) {
+                    profileMenu.classList.add('hidden');
+                }
+            });
+            
+            // Save profile data
+            saveProfileBtn.addEventListener('click', function() {
+                saveProfileData();
+                profileMenu.classList.add('hidden');
+            });
+            
+            // Connect logout button
+            logoutBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                logout();
+            });
+        }
+
+        function loadProfileData() {
+            const username = localStorage.getItem('username') || '';
+            const fullName = localStorage.getItem('fullName') || '';
+            const email = localStorage.getItem('email') || '';
+            
+            // Set form values
+            document.getElementById('profileUsername').value = username;
+            document.getElementById('profileFullName').value = fullName;
+            document.getElementById('profileEmail').value = email;
+            
+            // Update profile display
+            updateProfileDisplay(username, fullName);
+        }
+
+        function saveProfileData() {
+            const fullName = document.getElementById('profileFullName').value;
+            const email = document.getElementById('profileEmail').value;
+            const username = localStorage.getItem('username');
+            
+            // Save to localStorage
+            localStorage.setItem('fullName', fullName);
+            localStorage.setItem('email', email);
+            
+            // Update display
+            updateProfileDisplay(username, fullName);
+            
+            // Show confirmation
+            alert('Profile updated successfully!');
+        }
+
+        function updateProfileDisplay(username, fullName) {
+            const profileInitial = document.getElementById('profileInitial');
+            const profileName = document.getElementById('profileName');
+            
+            // Set profile initial
+            if (fullName) {
+                profileInitial.textContent = fullName.charAt(0).toUpperCase();
+                profileName.textContent = fullName;
+            } else {
+                profileInitial.textContent = username.charAt(0).toUpperCase();
+                profileName.textContent = username;
+            }
+            
+            // Also update welcome message if it exists
+            const welcomeMessage = document.getElementById('welcomeMessage');
+            if (welcomeMessage) {
+                welcomeMessage.textContent = `Welcome, ${fullName || username}!`;
+            }
+        }
+
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.getElementById(sectionId).classList.add('active');
+
+            if (sectionId === 'viewSection') {
+                loadBookings();
+                if (calendar) {
+                    calendar.refetchEvents();
+                }
+            }
+        }
+
+        function logout() {
+            // Clear all localStorage data
+            localStorage.clear();
+            window.location.href = 'auth.html';
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeProfile();
+            initializeInterface();
+            loadBookings();
+            setMinDate();
+            handleDateInput();
+            initializeCalendar();
+            
+            // Load venues from server
+            loadVenuesFromServer();
+        });
+
+        function loadVenuesFromServer() {
+            fetch("http://localhost:3004/api/venues")
+                .then(response => response.json())
+                .then(data => {
+                    // Transform server data to the format expected by the app
+                    venues = {};
+                    
+                    // Group venues by capacity
+                    data.forEach(venue => {
+                        const capacity = venue.capacity || '0-50'; // Default capacity if not set
+                        
+                        if (!venues[capacity]) {
+                            venues[capacity] = [];
+                        }
+                        
+                        venues[capacity].push({
+                            name: venue.name,
+                            hasProjector: venue.hasProjector || false,
+                            hasSpeaker: venue.hasSpeaker || false
+                        });
+                    });
+                    
+                    console.log("Venues loaded from server:", venues);
+                    
+                    // If attendees value is selected, update the venue dropdown
+                    const attendees = document.getElementById('attendees').value;
+                    if (attendees) {
+                        updateVenueOptions(attendees);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading venues:', error);
+                    // Fallback to default venues if server fetch fails
+                    initializeDefaultVenues();
+                });
+        }
+
+        // Fallback function in case server doesn't respond
+        function initializeDefaultVenues() {
+            venues = {
+                "0-50": [
+                    { name: "L1", hasProjector: true },
+                    { name: "L2", hasProjector: false },
+                    { name: "L3", hasProjector: true },
+                    { name: "L4", hasProjector: false }
+                ],
+                "50-100": [
+                    { name: "BSR 100", hasProjector: true },
+                    { name: "BSR 101", hasProjector: false },
+                    { name: "BSR 102", hasProjector: true },
+                    { name: "BSR 103", hasProjector: false }
+                ],
+                "100-150": [
+                    { name: "S200", hasProjector: true },
+                    { name: "S201", hasProjector: true },
+                    { name: "S202", hasProjector: false },
+                    { name: "S203", hasProjector: true }
+                ],
+                "150-200": [
+                    { name: "S200", hasProjector: true },
+                    { name: "S201", hasProjector: true },
+                    { name: "S202", hasProjector: false },
+                    { name: "S203", hasProjector: true }
+                ],
+                "200+": [
+                    { name: "Pavilion", hasProjector: true },
+                    { name: "School Hall", hasProjector: true }
+                ]
+            };
+        }
+
+        function initializeInterface() {
+            document.getElementById('attendees').addEventListener('change', function() {
+                const selected = this.value;
+                
+                // Show/hide speaker option based on attendee count
+                const speakerOption = document.getElementById('speakerOption');
+                if (selected === "100-150" || selected === "150-200" || selected === "200+") {
+                    speakerOption.style.display = 'block';
+                } else {
+                    speakerOption.style.display = 'none';
+                    document.getElementById('speakerRequired').checked = false;
+                }
+
+                // Update venue dropdown
+                updateVenueOptions(selected);
+            });
+
+            // Filter venues when projector checkbox changes
+            document.getElementById('projectorRequired').addEventListener('change', function() {
+                const attendees = document.getElementById('attendees').value;
+                if (attendees) {
+                    updateVenueOptions(attendees);
+                }
+            });
+
+            document.getElementById('bookingForm').addEventListener('submit', function(event) {
+                event.preventDefault();
+                submitBookingForm();
+            });
+
+            document.getElementById('myBookingsOnly').addEventListener('change', loadBookings);
+        }
+
+        // Function to update venue dropdown based on attendee selection
+        function updateVenueOptions(attendeeCount) {
+            const venueSelect = document.getElementById('venue');
+            const projectorRequired = document.getElementById('projectorRequired').checked;
+            
+            venueSelect.innerHTML = '<option value="">Select Venue</option>';
+            
+            // Use the venue data from the server
+            if (venues[attendeeCount]) {
+                venues[attendeeCount].forEach(venue => {
+                    // Only show venues with projectors if required
+                    if (!projectorRequired || venue.hasProjector) {
+                        venueSelect.innerHTML += `<option value="${venue.name}" data-has-projector="${venue.hasProjector}">
+                            ${venue.name} ${venue.hasProjector ? '(with Projector)' : ''}
+                        </option>`;
+                    }
+                });
+            } else {
+                // If no venues for this capacity, show a message
+                venueSelect.innerHTML += '<option value="" disabled>No venues available for this capacity</option>';
+            }
+        }
+
+        function submitBookingForm() {
+            const department = document.getElementById('department').value;
+            const title = document.getElementById('title').value;
+            const venue = document.getElementById('venue').value;
+            const date = document.getElementById('date').value;
+            const time = document.getElementById('time').value;
+            const username = localStorage.getItem('username');
+            const projectorRequired = document.getElementById('projectorRequired').checked;
+            const speakerRequired = document.getElementById('speakerOption').style.display !== 'none' ? 
+                                document.getElementById('speakerRequired').checked : false;
+
+            fetch('http://localhost:3004/api/bookings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    title, 
+                    venue, 
+                    date, 
+                    time, 
+                    username,
+                    department,
+                    projectorRequired,
+                    speakerRequired
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => { throw err; });
+                }
+                return response.json();
+            })
+            .then(data => {
+                alert(data.message);
+                showSection('viewSection');
+                if (calendar) {
+                    calendar.refetchEvents();
+                }
+            })
+            .catch(error => {
+                if (error.message) {
+                    alert(error.message);
+                } else {
+                    console.error('Error:', error);
+                    alert("An error occurred while booking the venue.");
+                }
+            });
+        }
+
+        function deleteBooking(id) {
+            const username = localStorage.getItem('username');
+            fetch(`http://localhost:3004/api/bookings/${id}?username=${username}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                loadBookings();
+                if (calendar) {
+                    calendar.refetchEvents();
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function loadBookings() {
+            const username = localStorage.getItem('username');
+            const myBookingsOnly = document.getElementById('myBookingsOnly').checked;
+
+            const url = myBookingsOnly 
+                ? `http://localhost:3004/api/bookings?username=${username}`
+                : 'http://localhost:3004/api/bookings';
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    const list = document.getElementById('bookingsList');
+                    list.innerHTML = '';
+
+                    if (data.length === 0) {
+                        list.innerHTML = '<li class="py-4 text-center text-gray-500">No bookings found</li>';
+                        return;
+                    }
+
+                    data.forEach(booking => {
+                        const startParts = booking.start.split('T');
+                        const canDelete = booking.username === username;
+                        const bookingTitle = booking.title || "Untitled Booking"; // Fallback if title is missing
+                        const venue = booking.venue || ""; // Add venue if available
+                        const department = booking.department || ""; // Display department information
+
+                        list.innerHTML += `
+                            <li class="py-4 flex justify-between items-center">
+                                <div>
+                                    <h3 class="text-lg font-medium text-gray-900">${bookingTitle}</h3>
+                                    <p class="text-sm text-gray-500">
+                                        ${startParts[0]} at ${startParts[1]} 
+                                        ${venue ? `| Venue: ${venue}` : ''}
+                                        ${department ? `| Department: ${department}` : ''}
+                                    </p>
+                                    ${!myBookingsOnly ? `<p class="text-xs text-gray-400">Booked by: ${booking.bookedBy || 'Unknown'}</p>` : ''}
+                                </div>
+                                ${canDelete ? `
+                                    <button onclick="deleteBooking(${booking.id})" 
+                                            class="bg-red-600 text-white px-3 py-1 rounded-md hover:bg-red-700">
+                                        Delete
+                                    </button>
+                                ` : ''}
+                            </li>`;
+                    });
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function initializeCalendar() {
+            var calendarEl = document.getElementById('calendar');
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                height: 450,
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                },
+                events: async function(fetchInfo, successCallback, failureCallback) {
+                    try {
+                        const username = localStorage.getItem('username');
+                        const myBookingsOnly = document.getElementById('myBookingsOnly').checked;
+                        const url = myBookingsOnly 
+                            ? `http://localhost:3004/api/bookings?username=${username}`
+                            : 'http://localhost:3004/api/bookings';
+
+                        let response = await fetch(url);
+                        let bookings = await response.json();
+
+                        // Transform bookings to ensure each has a properly formatted title
+                        const events = bookings.map(booking => {
+                            return {
+                                id: booking.id,
+                                title: booking.title || "Untitled Booking", // Ensure title is set
+                                start: booking.start,
+                                username: booking.username,
+                                venue: booking.venue,
+                                department: booking.department,
+                                // You can add custom styling for events here
+                                backgroundColor: booking.username === username ? '#4F46E5' : '#9CA3AF'
+                            };
+                        });
+
+                        successCallback(events);
+                    } catch (error) {
+                        failureCallback(error);
+                    }
+                },
+                eventDidMount: function(info) {
+                    // Add venue and department information to the tooltip
+                    let tooltipContent = info.event.title;
+                    if (info.event.extendedProps.venue) {
+                        tooltipContent += ` (${info.event.extendedProps.venue})`;
+                    }
+                    if (info.event.extendedProps.department) {
+                        tooltipContent += ` - ${info.event.extendedProps.department}`;
+                    }
+                    info.el.title = tooltipContent;
+                }
+            });
+            calendar.render();
+        }
+
+        function setMinDate() {
+            const dateInput = document.getElementById('date');
+            const today = new Date();
+            const todayFormatted = today.toISOString().split('T')[0];
+            dateInput.setAttribute('min', todayFormatted);
+            dateInput.value = todayFormatted;
+        }
+
+        function handleDateInput() {
+            const dateInput = document.getElementById('date');
+
+            const today = new Date();
+            const todayFormatted = today.toISOString().split('T')[0];
+            dateInput.setAttribute('min', todayFormatted);
+
+            dateInput.addEventListener('change', function() {
+                const selectedDate = new Date(this.value);
+                selectedDate.setHours(0, 0, 0, 0);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                if (selectedDate < today) {
+                    alert("Please select a date from today onwards.");
+                    this.value = todayFormatted;
+                }
+            });
+        }
+
+        // Calendar event handlers
+        document.addEventListener('fullcalendar_events_update', function() {
+            if (calendar) {
+                calendar.refetchEvents();
+            }
+        });
+
+        // Automatically update bookings list and calendar periodically
+        setInterval(function() {
+            if (document.getElementById('viewSection').classList.contains('active')) {
+                loadBookings();
+                if (calendar) {
+                    calendar.refetchEvents();
+                }
+            }
+        }, 30000); // Update every 30 seconds
+    </script>
+</body>
+</html><!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -256,459 +743,8 @@
             <button onclick="showSection('menuSection')" class="mb-6 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300">
                 Back to Menu
             </button>
-<!-- List view of bookings -->
-            <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-semibold text-gray-800">Upcoming Bookings</h2>
-                    <!-- Filter toggle for personal bookings -->
-                    <div class="flex items-center">
-                        <input type="checkbox" id="myBookingsOnly" class="mr-2">
-                        <label for="myBookingsOnly" class="text-sm text-gray-600">Show my bookings only</label>
-                    </div>
-                </div>
-                <!-- Dynamic list of bookings -->
-                <ul id="bookingsList" class="divide-y divide-gray-200"></ul>
-            </div>
-            <!-- Calendar view of bookings -->
-            <div class="bg-white rounded-lg shadow-lg p-6">
-                <h2 class="text-2xl font-semibold text-gray-800 mb-4">Calendar View</h2>
-                <div id="calendar"></div>
-            </div>
-        </div>
-    </div>
-    
-    <script>
-        // Venue data with capacity ranges and equipment information
-    const venues = {
-        "0-50": [
-            { name: "L1", hasProjector: true },
-            { name: "L2", hasProjector: false },
-            { name: "L3", hasProjector: true },
-            { name: "L4", hasProjector: false }
-        ],
-        "50-100": [
-            { name: "BSR 100", hasProjector: true },
-            { name: "BSR 101", hasProjector: false },
-            { name: "BSR 102", hasProjector: true },
-            { name: "BSR 103", hasProjector: false }
-        ],
-        "100-150": [
-            { name: "S200", hasProjector: true },
-            { name: "S201", hasProjector: true },
-            { name: "S202", hasProjector: false },
-            { name: "S203", hasProjector: true }
-        ],
-        "150-200": [
-            { name: "S200", hasProjector: true },
-            { name: "S201", hasProjector: true },
-            { name: "S202", hasProjector: false },
-            { name: "S203", hasProjector: true }
-        ],
-        "200+": [
-            { name: "Pavilion", hasProjector: true },
-            { name: "School Hall", hasProjector: true }
-        ]
-    };
-// Global calendar object
-    let calendar;
-
-    // Profile functionality
-    function initializeProfile() {
-        const profileButton = document.getElementById('profileButton');
-        const profileMenu = document.getElementById('profileMenu');
-        const saveProfileBtn = document.getElementById('saveProfileBtn');
-        const logoutBtn = document.getElementById('logoutBtn');
-        const profileInitial = document.getElementById('profileInitial');
-        const profileName = document.getElementById('profileName');
-        
-        //Load existing profile data from localStorage
-        loadProfileData();
-        
-        // Toggle dropdown visibility when profile button is clicked
-        profileButton.addEventListener('click', function() {
-            profileMenu.classList.toggle('hidden');
-        });
-        
-        // Close dropdown when clicking outside
-        document.addEventListener('click', function(event) {
-            if (!profileButton.contains(event.target) && !profileMenu.contains(event.target)) {
-                profileMenu.classList.add('hidden');
-            }
-        });
-        
-        // Save profile data
-        saveProfileBtn.addEventListener('click', function() {
-            saveProfileData();
-            profileMenu.classList.add('hidden');
-        });
-        
-        // Connect logout button
-        logoutBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            logout();
-        });
-    }
-
-    function loadProfileData() {
-        const username = localStorage.getItem('username') || '';
-        const fullName = localStorage.getItem('fullName') || '';
-        const email = localStorage.getItem('email') || '';
-        
-        // Set form values
-        document.getElementById('profileUsername').value = username;
-        document.getElementById('profileFullName').value = fullName;
-        document.getElementById('profileEmail').value = email;
-        
-        // Update profile display
-        updateProfileDisplay(username, fullName);
-    }
-
-    function saveProfileData() {
-        const fullName = document.getElementById('profileFullName').value;
-        const email = document.getElementById('profileEmail').value;
-        const username = localStorage.getItem('username');
-        
-        // Save to localStorage
-        localStorage.setItem('fullName', fullName);
-        localStorage.setItem('email', email);
-        
-        // Update display
-        updateProfileDisplay(username, fullName);
-        
-        // Show confirmation
-        alert('Profile updated successfully!');
-    }
-
-    function updateProfileDisplay(username, fullName) {
-        const profileInitial = document.getElementById('profileInitial');
-        const profileName = document.getElementById('profileName');
-        
-        // Set profile initial
-        if (fullName) {
-            profileInitial.textContent = fullName.charAt(0).toUpperCase();
-            profileName.textContent = fullName;
-        } else {
-            profileInitial.textContent = username.charAt(0).toUpperCase();
-            profileName.textContent = username;
-        }
-        
-        // Also update welcome message if it exists
-        const welcomeMessage = document.getElementById('welcomeMessage');
-        if (welcomeMessage) {
-            welcomeMessage.textContent = `Welcome, ${fullName || username}!`;
-        }
-    }
-
-    function showSection(sectionId) {
-        document.querySelectorAll('.section').forEach(section => {
-            section.classList.remove('active');
-        });
-        document.getElementById(sectionId).classList.add('active');
-
-        if (sectionId === 'viewSection') {
-            loadBookings();
-            if (calendar) {
-                calendar.refetchEvents();
-            }
-        }
-    }
-
-    function logout() {
-        // Clear all localStorage data
-        localStorage.clear();
-        window.location.href = 'auth.html';
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        initializeProfile();
-        initializeInterface();
-        loadBookings();
-        setMinDate();
-        handleDateInput();
-        initializeCalendar();
-    });
-
-    function initializeInterface() {
-        document.getElementById('attendees').addEventListener('change', function() {
-            const selected = this.value;
-            const venueSelect = document.getElementById('venue');
-            venueSelect.innerHTML = '<option value="">Select Venue</option>';
-
-            // Show/hide speaker option based on attendee count
-            const speakerOption = document.getElementById('speakerOption');
-            if (selected === "100-150" || selected === "150-200" || selected === "200+") {
-                speakerOption.style.display = 'block';
-            } else {
-                speakerOption.style.display = 'none';
-                document.getElementById('speakerRequired').checked = false;
-            }
-
-            // Update venue dropdown
-            if (venues[selected]) {
-                venues[selected].forEach(venue => {
-                    venueSelect.innerHTML += `<option value="${venue.name}" data-has-projector="${venue.hasProjector}">
-                        ${venue.name} ${venue.hasProjector ? '(with Projector)' : ''}
-                    </option>`;
-                });
-            }
-        });
-
-        // Filter venues when projector checkbox changes
-        document.getElementById('projectorRequired').addEventListener('change', function() {
-            filterVenuesByProjector();
-        });
-
-        document.getElementById('bookingForm').addEventListener('submit', function(event) {
-            event.preventDefault();
-            submitBookingForm();
-        });
-
-        document.getElementById('myBookingsOnly').addEventListener('change', loadBookings);
-    }
-
-    function filterVenuesByProjector() {
-        const projectorRequired = document.getElementById('projectorRequired').checked;
-        const attendees = document.getElementById('attendees').value;
-        const venueSelect = document.getElementById('venue');
-
-        // Save current selection if possible
-        const currentSelection = venueSelect.value;
-
-        venueSelect.innerHTML = '<option value="">Select Venue</option>';
-
-        if (venues[attendees]) {
-            venues[attendees].forEach(venue => {
-                if (!projectorRequired || venue.hasProjector) {
-                    venueSelect.innerHTML += `<option value="${venue.name}" data-has-projector="${venue.hasProjector}">
-                        ${venue.name} ${venue.hasProjector ? '(with Projector)' : ''}
-                    </option>`;
-                }
-            });
-        }
-
-        // Try to restore previous selection if it still exists
-        if (currentSelection) {
-            for (let i = 0; i < venueSelect.options.length; i++) {
-                if (venueSelect.options[i].value === currentSelection) {
-                    venueSelect.selectedIndex = i;
-                    break;
-                }
-            }
-        }
-    }
-
-    function submitBookingForm() {
-        const department = document.getElementById('department').value;
-        const title = document.getElementById('title').value;
-        const venue = document.getElementById('venue').value;
-        const date = document.getElementById('date').value;
-        const time = document.getElementById('time').value;
-        const username = localStorage.getItem('username');
-        const projectorRequired = document.getElementById('projectorRequired').checked;
-        const speakerRequired = document.getElementById('speakerOption').style.display !== 'none' ? 
-                                document.getElementById('speakerRequired').checked : false;
-
-        fetch('http://localhost:3004/api/bookings', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                title, 
-                venue, 
-                date, 
-                time, 
-                username,
-                department,
-                projectorRequired,
-                speakerRequired
-            })
-        })
-        .then(response => {
-            if (!response.ok) {
-                return response.json().then(err => { throw err; });
-            }
-            return response.json();
-        })
-        .then(data => {
-            alert(data.message);
-            showSection('viewSection');
-            if (calendar) {
-                calendar.refetchEvents();
-            }
-        })
-        .catch(error => {
-            if (error.message) {
-                alert(error.message);
-            } else {
-                console.error('Error:', error);
-                alert("An error occurred while booking the venue.");
-            }
-        });
-    }
-
-    function deleteBooking(id) {
-        const username = localStorage.getItem('username');
-        fetch(`http://localhost:3004/api/bookings/${id}?username=${username}`, {
-            method: 'DELETE'
-        })
-        .then(response => response.json())
-        .then(data => {
-            alert(data.message);
-            loadBookings();
-            if (calendar) {
-                calendar.refetchEvents();
-            }
-        })
-        .catch(error => console.error('Error:', error));
-    }
-
-    function loadBookings() {
-        const username = localStorage.getItem('username');
-        const myBookingsOnly = document.getElementById('myBookingsOnly').checked;
-
-        const url = myBookingsOnly 
-            ? `http://localhost:3004/api/bookings?username=${username}`
-            : 'http://localhost:3004/api/bookings';
-
-        fetch(url)
-            .then(response => response.json())
-            .then(data => {
-                const list = document.getElementById('bookingsList');
-                list.innerHTML = '';
-
-                if (data.length === 0) {
-                    list.innerHTML = '<li class="py-4 text-center text-gray-500">No bookings found</li>';
-                    return;
-                }
-
-                data.forEach(booking => {
-                    const startParts = booking.start.split('T');
-                    const canDelete = booking.username === username;
-                    const bookingTitle = booking.title || "Untitled Booking"; // Fallback if title is missing
-                    const venue = booking.venue || ""; // Add venue if available
-                    const department = booking.department || ""; // Display department information
-
-                    list.innerHTML += `
-                        <li class="py-4 flex justify-between items-center">
-                            <div>
-                                <h3 class="text-lg font-medium text-gray-900">${bookingTitle}</h3>
-                                <p class="text-sm text-gray-500">
-                                    ${startParts[0]} at ${startParts[1]} 
-                                    ${venue ? `| Venue: ${venue}` : ''}
-                                    ${department ? `| Department: ${department}` : ''}
-                                </p>
-                                ${!myBookingsOnly ? `<p class="text-xs text-gray-400">Booked by: ${booking.bookedBy || 'Unknown'}</p>` : ''}
-                            </div>
-                            ${canDelete ? `
-                                <button onclick="deleteBooking(${booking.id})" 
-                                        class="bg-red-600 text-white px-3 py-1 rounded-md hover:bg-red-700">
-                                    Delete
-                                </button>
-                            ` : ''}
-                        </li>`;
-                });
-            })
-            .catch(error => console.error('Error:', error));
-    }
-
-    function initializeCalendar() {
-        var calendarEl = document.getElementById('calendar');
-        calendar = new FullCalendar.Calendar(calendarEl, {
-            initialView: 'dayGridMonth',
-            height: 450,
-            headerToolbar: {
-                left: 'prev,next today',
-                center: 'title',
-                right: 'dayGridMonth,timeGridWeek,timeGridDay'
-            },
-            events: async function(fetchInfo, successCallback, failureCallback) {
-                try {
-                    const username = localStorage.getItem('username');
-                    const myBookingsOnly = document.getElementById('myBookingsOnly').checked;
-                    const url = myBookingsOnly 
-                        ? `http://localhost:3004/api/bookings?username=${username}`
-                        : 'http://localhost:3004/api/bookings';
-
-                    let response = await fetch(url);
-                    let bookings = await response.json();
-
-                    // Transform bookings to ensure each has a properly formatted title
-                    const events = bookings.map(booking => {
-                        return {
-                            id: booking.id,
-                            title: booking.title || "Untitled Booking", // Ensure title is set
-                            start: booking.start,
-                            username: booking.username,
-                            venue: booking.venue,
-                            department: booking.department,
-                            // You can add custom styling for events here
-                            backgroundColor: booking.bookedBy === username ? '#4F46E5' : '#9CA3AF'
-                        };
-                    });
-
-                    successCallback(events);
-                } catch (error) {
-                    failureCallback(error);
-                }
-            },
-            eventDidMount: function(info) {
-                // Add venue and department information to the tooltip
-                let tooltipContent = info.event.title;
-                if (info.event.extendedProps.venue) {
-                    tooltipContent += ` (${info.event.extendedProps.venue})`;
-                }
-                if (info.event.extendedProps.department) {
-                    tooltipContent += ` - ${info.event.extendedProps.department}`;
-                }
-                info.el.title = tooltipContent;
-            }
-        });
-        calendar.render();
-    }
-
-    function setMinDate() {
-        const dateInput = document.getElementById('date');
-        const today = new Date();
-        const todayFormatted = today.toISOString().split('T')[0];
-        dateInput.setAttribute('min', todayFormatted);
-        dateInput.value = todayFormatted;
-    }
-
-    function handleDateInput() {
-        const dateInput = document.getElementById('date');
-
-        const today = new Date();
-        const todayFormatted = today.toISOString().split('T')[0];
-        dateInput.setAttribute('min', todayFormatted);
-
-        dateInput.addEventListener('change', function() {
-            const selectedDate = new Date(this.value);
-            selectedDate.setHours(0, 0, 0, 0);
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-
-            if (selectedDate < today) {
-                alert("Please select a date from today onwards.");
-                this.value = todayFormatted;
-            }
-        });
-    }
-
-    // Calendar event handlers
-    document.addEventListener('fullcalendar_events_update', function() {
-        if (calendar) {
-            calendar.refetchEvents();
-        }
-    });
-
-    // Automatically update bookings list and calendar periodically
-    setInterval(function() {
-        if (document.getElementById('viewSection').classList.contains('active')) {
-            loadBookings();
-            if (calendar) {
-                calendar.refetchEvents();
-            }
-        }
-    }, 30000); // Update every 30 seconds
-    </script>
-</body>
-</html>
+            
+            <!-- Filter toggle for personal bookings -->
+            <div class="flex justify-end mb-4">
+                <div class="flex items-center">
+                    <input type="checkbox" id="myBookingsOnly" class="mr-2
