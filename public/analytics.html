@@ -3,13 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analytics - Venue Management</title>
+    <title>Analytics Dashboard - Venue Management</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    <style>
+        .stats-card {
+            transition: transform 0.2s;
+        }
+        
+        .stats-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .chart-container {
+            height: 300px;
+            position: relative;
+        }
+    </style>
 </head>
 <body class="bg-gray-50">
-    <!-- Authentication check script -->
     <script>
+    // Authentication check
     (function() {
         const username = localStorage.getItem('username');
         if (!username) {
@@ -19,248 +33,378 @@
     })();
     </script>
 
-    <div class="container mx-auto px-4 py-8 max-w-7xl">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
         <div class="flex justify-between items-center mb-8">
-            <div class="flex items-center space-x-4">
-                <h1 class="text-2xl md:text-3xl font-bold text-gray-800">
-                    Venue Analytics & Reporting
-                </h1>
-            </div>
-            <div class="flex space-x-2">
-                <button onclick="window.location.href='index.html'" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-1" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.707-10.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L9.414 11H13a1 1 0 100-2H9.414l1.293-1.293z" clip-rule="evenodd" />
-                    </svg>
-                    Back to App
+            <h1 class="text-3xl font-bold text-gray-800">
+                Venue Analytics Dashboard
+            </h1>
+            <div>
+                <button onclick="window.location.href='index.html'" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 mr-2">
+                    Back to Main App
                 </button>
-                <button id="exportReportBtn" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-1" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
-                    </svg>
-                    Export Report
+                <button id="refreshButton" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+                    <span id="refreshIcon">↻</span> Refresh Data
                 </button>
             </div>
         </div>
 
-        <!-- Date Range Filter -->
-        <div class="bg-white rounded-lg shadow-md p-4 mb-8">
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
-                <div class="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0 md:space-x-4">
-                    <div>
-                        <label for="startDate" class="block text-sm font-medium text-gray-700">Start Date</label>
-                        <input type="date" id="startDate" class="mt-1 block rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                    </div>
-                    <div>
-                        <label for="endDate" class="block text-sm font-medium text-gray-700">End Date</label>
-                        <input type="date" id="endDate" class="mt-1 block rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                    </div>
-                    <div>
-                        <label for="venueFilter" class="block text-sm font-medium text-gray-700">Venue</label>
-                        <select id="venueFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="all">All Venues</option>
-                            <!-- Venues will be populated dynamically -->
-                        </select>
+        <div class="text-center text-gray-600 mb-8" id="welcomeMessage"></div>
+
+        <!-- Loading Indicator -->
+        <div id="loadingSection" class="text-center py-20">
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div>
+            <p class="mt-4 text-gray-600">Loading analytics data...</p>
+        </div>
+
+        <!-- Analytics Dashboard -->
+        <div id="analyticsSection" class="hidden">
+            <!-- Summary Stats -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="stats-card bg-white rounded-lg shadow-lg p-6">
+                    <h2 class="text-gray-500 text-sm uppercase tracking-wide mb-1">Total Users</h2>
+                    <p class="text-3xl font-bold text-gray-800" id="totalUsers">0</p>
+                </div>
+                <div class="stats-card bg-white rounded-lg shadow-lg p-6">
+                    <h2 class="text-gray-500 text-sm uppercase tracking-wide mb-1">Total Bookings</h2>
+                    <p class="text-3xl font-bold text-gray-800" id="totalBookings">0</p>
+                </div>
+                <div class="stats-card bg-white rounded-lg shadow-lg p-6">
+                    <h2 class="text-gray-500 text-sm uppercase tracking-wide mb-1">Total Venues</h2>
+                    <p class="text-3xl font-bold text-gray-800" id="totalVenues">0</p>
+                </div>
+            </div>
+
+            <!-- Charts Row 1 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Bookings Trend</h2>
+                    <div class="chart-container">
+                        <canvas id="bookingsTrendChart"></canvas>
                     </div>
                 </div>
-                <div class="flex items-center space-x-2">
-                    <button id="applyFiltersBtn" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
-                        Apply Filters
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Venue Popularity</h2>
+                    <div class="chart-container">
+                        <canvas id="venuePopularityChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row 2 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Department Bookings</h2>
+                    <div class="chart-container">
+                        <canvas id="departmentChart"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Equipment Usage</h2>
+                    <div class="chart-container">
+                        <canvas id="equipmentChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- No Data Message (initially hidden) -->
+            <div id="noDataMessage" class="text-center py-8 bg-white rounded-lg shadow-lg hidden">
+                <svg class="mx-auto h-16 w-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                <h3 class="mt-4 text-xl font-medium text-gray-700">No booking data available</h3>
+                <p class="mt-2 text-gray-500">Start creating venue bookings to see analytics here.</p>
+                <div class="mt-6">
+                    <button onclick="window.location.href='index.html'" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
+                        Create Bookings
                     </button>
-                    <button id="resetFiltersBtn" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300">
-                        Reset
-                    </button>
                 </div>
-            </div>
-        </div>
-
-        <!-- Key Metrics -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <p class="text-sm font-medium text-gray-500">Total Bookings</p>
-                        <h3 class="text-3xl font-bold text-gray-800 mt-1" id="totalBookings">--</h3>
-                    </div>
-                    <div class="rounded-full bg-blue-100 p-3">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                    </div>
-                </div>
-                <div class="mt-2 flex items-center text-sm">
-                    <span class="text-green-500 font-semibold" id="bookingsTrend">+0%</span>
-                    <span class="text-gray-500 ml-1">vs previous period</span>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <p class="text-sm font-medium text-gray-500">Utilization Rate</p>
-                        <h3 class="text-3xl font-bold text-gray-800 mt-1" id="utilizationRate">--%</h3>
-                    </div>
-                    <div class="rounded-full bg-green-100 p-3">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                        </svg>
-                    </div>
-                </div>
-                <div class="mt-2 flex items-center text-sm">
-                    <span class="text-green-500 font-semibold" id="utilizationTrend">+0%</span>
-                    <span class="text-gray-500 ml-1">vs previous period</span>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <p class="text-sm font-medium text-gray-500">Most Used Venue</p>
-                        <h3 class="text-xl font-bold text-gray-800 mt-1" id="mostUsedVenue">--</h3>
-                    </div>
-                    <div class="rounded-full bg-purple-100 p-3">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                        </svg>
-                    </div>
-                </div>
-                <div class="mt-2 flex items-center text-sm">
-                    <span class="text-gray-500" id="mostUsedVenueBookings">-- bookings</span>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <p class="text-sm font-medium text-gray-500">Peak Booking Time</p>
-                        <h3 class="text-xl font-bold text-gray-800 mt-1" id="peakBookingTime">--</h3>
-                    </div>
-                    <div class="rounded-full bg-yellow-100 p-3">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                    </div>
-                </div>
-                <div class="mt-2 flex items-center text-sm">
-                    <span class="text-gray-500" id="peakTimePercentage">--% of bookings</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Charts Section -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <!-- Venue Utilization Chart -->
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4">Venue Utilization</h3>
-                <div class="h-80 w-full">
-                    <canvas id="venueUtilizationChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Bookings by Department Chart -->
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4">Bookings by Department</h3>
-                <div class="h-80 w-full">
-                    <canvas id="departmentBookingsChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Bookings Over Time Chart -->
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4">Bookings Over Time</h3>
-                <div class="h-80 w-full">
-                    <canvas id="bookingsTrendChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Equipment Usage Chart -->
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4">Equipment Usage</h3>
-                <div class="h-80 w-full">
-                    <canvas id="equipmentUsageChart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- Detailed Analysis -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">Efficiency Analysis</h3>
-
-            <div class="mb-4">
-                <div class="flex space-x-2 mb-4">
-                    <button class="filter-btn px-4 py-2 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 active" data-view="capacity">Capacity Utilization</button>
-                    <button class="filter-btn px-4 py-2 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300" data-view="time">Time Distribution</button>
-                    <button class="filter-btn px-4 py-2 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300" data-view="department">Department Analysis</button>
-                </div>
-
-                <div id="capacityUtilizationView" class="analysis-view">
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Venue</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Capacity</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg. Attendees</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Efficiency</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Recommendation</th>
-                                </tr>
-                            </thead>
-                            <tbody id="capacityTable" class="bg-white divide-y divide-gray-200">
-                                <!-- Will be populated dynamically -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div id="timeDistributionView" class="analysis-view hidden">
-                    <div class="h-80 w-full">
-                        <canvas id="timeDistributionChart"></canvas>
-                    </div>
-                </div>
-
-                <div id="departmentAnalysisView" class="analysis-view hidden">
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Bookings</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Most Used Venue</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg. Booking Duration</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Peak Booking Time</th>
-                                </tr>
-                            </thead>
-                            <tbody id="departmentTable" class="bg-white divide-y divide-gray-200">
-                                <!-- Will be populated dynamically -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Booking History -->
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">Booking History</h3>
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date & Time</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Venue</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attendees</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Equipment</th>
-                        </tr>
-                    </thead>
-                    <tbody id="bookingHistoryTable" class="bg-white divide-y divide-gray-200">
-                        <!-- Will be populated dynamically -->
-                    </tbody>
-                </table>
             </div>
         </div>
     </div>
 
-    <script src="js/analytics.js"></script>
+    <script>
+        // Global chart objects
+        let bookingsTrendChart, venuePopularityChart, departmentChart, equipmentChart;
+        
+        document.addEventListener("DOMContentLoaded", () => {
+            // Set welcome message
+            const username = localStorage.getItem('username');
+            const fullName = localStorage.getItem('fullName');
+            document.getElementById('welcomeMessage').textContent = `Welcome, ${fullName || username}!`;
+            
+            // Setup refresh button
+            document.getElementById('refreshButton').addEventListener('click', () => {
+                const icon = document.getElementById('refreshIcon');
+                icon.classList.add('animate-spin');
+                fetchAnalyticsData().finally(() => {
+                    setTimeout(() => {
+                        icon.classList.remove('animate-spin');
+                    }, 500);
+                });
+            });
+            
+            // Initial data load
+            fetchAnalyticsData();
+        });
+
+        async function fetchAnalyticsData() {
+            showLoading();
+            
+            try {
+                // Fetch analytics data
+                console.log('Fetching analytics data...');
+                const response = await fetch('http://localhost:3004/api/analytics/dashboard');
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('Analytics data:', data);
+                
+                if (isEmptyData(data)) {
+                    showNoData();
+                    return;
+                }
+                
+                updateDashboard(data);
+                hideLoading();
+            } catch (error) {
+                console.error('Error fetching analytics data:', error);
+                alert('Failed to load analytics data: ' + error.message);
+                showNoData();
+            }
+        }
+        
+        function isEmptyData(data) {
+            // Check if we have any meaningful data to display
+            return !data || !data.summary || data.summary.bookings === 0;
+        }
+        
+        function showLoading() {
+            document.getElementById('loadingSection').style.display = 'block';
+            document.getElementById('analyticsSection').classList.add('hidden');
+            document.getElementById('noDataMessage').classList.add('hidden');
+        }
+        
+        function hideLoading() {
+            document.getElementById('loadingSection').style.display = 'none';
+            document.getElementById('analyticsSection').classList.remove('hidden');
+            document.getElementById('noDataMessage').classList.add('hidden');
+        }
+        
+        function showNoData() {
+            document.getElementById('loadingSection').style.display = 'none';
+            document.getElementById('analyticsSection').classList.remove('hidden');
+            document.getElementById('noDataMessage').classList.remove('hidden');
+        }
+        
+        function updateDashboard(data) {
+            // Update summary stats
+            document.getElementById('totalUsers').textContent = data.summary.users || 0;
+            document.getElementById('totalBookings').textContent = data.summary.bookings || 0;
+            document.getElementById('totalVenues').textContent = data.summary.venues || 0;
+            
+            // Update charts
+            updateBookingsTrendChart(data.monthlyTrend);
+            updateVenuePopularityChart(data.bookingsByVenue);
+            updateDepartmentChart(data.bookingsByDepartment);
+            updateEquipmentChart(data.equipmentUsage);
+        }
+        
+        function updateBookingsTrendChart(trendData) {
+            if (!trendData || trendData.length === 0) return;
+            
+            const ctx = document.getElementById('bookingsTrendChart').getContext('2d');
+            const labels = trendData.map(item => formatLabel(item.month));
+            const values = trendData.map(item => item.count);
+            
+            if (bookingsTrendChart) {
+                bookingsTrendChart.data.labels = labels;
+                bookingsTrendChart.data.datasets[0].data = values;
+                bookingsTrendChart.update();
+            } else {
+                bookingsTrendChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Number of Bookings',
+                            data: values,
+                            backgroundColor: 'rgba(79, 70, 229, 0.2)',
+                            borderColor: 'rgba(79, 70, 229, 1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    precision: 0
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+        
+        function updateVenuePopularityChart(venueData) {
+            if (!venueData || venueData.length === 0) return;
+            
+            const ctx = document.getElementById('venuePopularityChart').getContext('2d');
+            
+            // Limit to top 5 venues for better visualization
+            const topVenues = venueData.slice(0, 5);
+            const labels = topVenues.map(item => item.venue);
+            const values = topVenues.map(item => item.count);
+            
+            // Generate colors
+            const backgroundColors = [
+                'rgba(79, 70, 229, 0.7)',
+                'rgba(59, 130, 246, 0.7)',
+                'rgba(16, 185, 129, 0.7)',
+                'rgba(245, 158, 11, 0.7)',
+                'rgba(239, 68, 68, 0.7)'
+            ];
+            
+            if (venuePopularityChart) {
+                venuePopularityChart.data.labels = labels;
+                venuePopularityChart.data.datasets[0].data = values;
+                venuePopularityChart.update();
+            } else {
+                venuePopularityChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Bookings',
+                            data: values,
+                            backgroundColor: backgroundColors
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    precision: 0
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+        
+        function updateDepartmentChart(departmentData) {
+            if (!departmentData || departmentData.length === 0) return;
+            
+            const ctx = document.getElementById('departmentChart').getContext('2d');
+            const labels = departmentData.map(item => item.department || 'Other');
+            const values = departmentData.map(item => item.count);
+            
+            // Generate colors
+            const backgroundColors = [
+                'rgba(79, 70, 229, 0.7)',
+                'rgba(59, 130, 246, 0.7)',
+                'rgba(16, 185, 129, 0.7)',
+                'rgba(245, 158, 11, 0.7)',
+                'rgba(239, 68, 68, 0.7)',
+                'rgba(236, 72, 153, 0.7)'
+            ];
+            
+            if (departmentChart) {
+                departmentChart.data.labels = labels;
+                departmentChart.data.datasets[0].data = values;
+                departmentChart.update();
+            } else {
+                departmentChart = new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: values,
+                            backgroundColor: backgroundColors
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+        }
+        
+        function updateEquipmentChart(equipmentData) {
+            if (!equipmentData) return;
+            
+            const ctx = document.getElementById('equipmentChart').getContext('2d');
+            
+            // Create data for the chart
+            const labels = ['Projector', 'Speaker System', 'No Equipment'];
+            const projectorCount = equipmentData.projector ? equipmentData.projector.count : 0;
+            const speakerCount = equipmentData.speaker ? equipmentData.speaker.count : 0;
+            
+            // Calculate "no equipment" count
+            const totalBookings = equipmentData.total || parseInt(document.getElementById('totalBookings').textContent) || 0;
+            const noEquipmentCount = totalBookings - projectorCount - speakerCount;
+            
+            const values = [projectorCount, speakerCount, Math.max(0, noEquipmentCount)];
+            
+            if (equipmentChart) {
+                equipmentChart.data.datasets[0].data = values;
+                equipmentChart.update();
+            } else {
+                equipmentChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: values,
+                            backgroundColor: [
+                                'rgba(79, 70, 229, 0.7)',
+                                'rgba(16, 185, 129, 0.7)',
+                                'rgba(209, 213, 219, 0.7)'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+        }
+        
+        // Helper function to format month labels
+        function formatLabel(monthStr) {
+            if (!monthStr) return '';
+            
+            if (monthStr.match(/^\d{4}-\d{2}$/)) {
+                const [year, month] = monthStr.split('-');
+                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                return `${monthNames[parseInt(month) - 1]} ${year}`;
+            }
+            
+            return monthStr;
+        }
+    </script>
 </body>
 </html>
