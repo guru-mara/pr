@@ -1,28 +1,449 @@
-<input type="checkbox" id="myBookingsOnly" class="mr-2">
-                    <label for="myBookingsOnly" class="text-sm text-gray-600">Show my bookings only</label>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Venue Management Dashboard</title>
+    <!-- External stylesheets and scripts -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/main.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+    <style>
+        /* Custom styles */
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        
+        /* Profile dropdown styles */
+        #profileMenu {
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        
+        /* Form styles */
+        .form-select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+        }
+        
+        input[type="date"]::-webkit-calendar-picker-indicator,
+        input[type="time"]::-webkit-calendar-picker-indicator {
+            background-color: transparent;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Authentication check script -->
+    <script>
+    (function() {
+        const username = localStorage.getItem('username');
+        if (!username) {
+            console.log("No user found, redirecting to auth page");
+            window.location.href = 'auth.html';
+        }
+    })();
+    </script>
+
+    <!-- Header with navigation -->
+    <header class="bg-white shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <h1 class="text-2xl font-bold text-gray-800">
+                        Conference Room & Venue Management
+                    </h1>
+                </div>
+                
+                <!-- Profile dropdown -->
+                <div class="relative" id="profileDropdown">
+                    <button id="profileButton" class="flex items-center space-x-2 bg-white rounded-full p-2 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+                        <div class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-lg" id="profileInitial"></div>
+                        <span class="text-gray-800 font-medium" id="profileName"></span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                    
+                    <!-- Dropdown Menu -->
+                    <div id="profileMenu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
+                        <h3 class="px-4 py-2 text-sm text-gray-500 border-b">User Profile</h3>
+                        
+                        <!-- Profile Form -->
+                        <div class="px-4 py-2">
+                            <div class="mb-3">
+                                <label for="profileUsername" class="block text-xs font-medium text-gray-700">Username</label>
+                                <input type="text" id="profileUsername" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm" disabled>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="profileFullName" class="block text-xs font-medium text-gray-700">Full Name</label>
+                                <input type="text" id="profileFullName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="profileEmail" class="block text-xs font-medium text-gray-700">Email</label>
+                                <input type="email" id="profileEmail" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                            </div>
+                            
+                            <button id="saveProfileBtn" class="w-full mt-3 bg-indigo-600 text-white px-3 py-1 rounded-md hover:bg-indigo-700 text-sm">
+                                Save Profile
+                            </button>
+                        </div>
+                        
+                        <div class="border-t border-gray-100"></div>
+                        
+                        <a href="#" id="logoutBtn" class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100">
+                            Logout
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main content area -->
+    <main class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+        <!-- Welcome message -->
+        <div class="text-center text-gray-600 mb-6" id="welcomeMessage"></div>
+
+        <!-- Main Menu Section -->
+        <div id="menuSection" class="section active">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+                <!-- Book a venue card - enhanced design -->
+                <div class="card-hover bg-white rounded-lg shadow-md p-8 cursor-pointer" onclick="showSection('bookingSection')">
+                    <div class="flex items-center mb-4">
+                        <div class="p-3 bg-indigo-100 rounded-full">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                        </div>
+                        <h2 class="ml-4 text-2xl font-bold text-gray-800">Book a Venue</h2>
+                    </div>
+                    <p class="text-gray-600 ml-16">Schedule a new venue booking for your upcoming events, meetings, or conferences</p>
+                    <div class="mt-6 ml-16">
+                        <span class="inline-flex items-center text-indigo-600 text-sm font-medium">
+                            Get started
+                            <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                            </svg>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- View bookings card - enhanced design -->
+                <div class="card-hover bg-white rounded-lg shadow-md p-8 cursor-pointer" onclick="showSection('viewSection')">
+                    <div class="flex items-center mb-4">
+                        <div class="p-3 bg-green-100 rounded-full">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            </svg>
+                        </div>
+                        <h2 class="ml-4 text-2xl font-bold text-gray-800">View Bookings</h2>
+                    </div>
+                    <p class="text-gray-600 ml-16">Check all upcoming venue bookings and manage your existing reservations</p>
+                    <div class="mt-6 ml-16">
+                        <span class="inline-flex items-center text-green-600 text-sm font-medium">
+                            View calendar
+                            <svg xmlns="http://www.w3.org/2000/svg" class="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                            </svg>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick stats and information cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-3">Quick Stats</h3>
+                    <div class="flex justify-between items-center">
+                        <div class="text-center">
+                            <p class="text-sm text-gray-500">Your Bookings</p>
+                            <p class="text-2xl font-bold text-indigo-600">3</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-sm text-gray-500">This Week</p>
+                            <p class="text-2xl font-bold text-indigo-600">2</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-sm text-gray-500">Upcoming</p>
+                            <p class="text-2xl font-bold text-indigo-600">5</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-3">Next Booking</h3>
+                    <div class="text-sm text-gray-600">
+                        <p class="font-medium text-gray-900">Team Meeting</p>
+                        <p>Tomorrow at 10:00 AM</p>
+                        <p>Conference Room A</p>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-3">Popular Venues</h3>
+                    <ul class="text-sm text-gray-600">
+                        <li class="flex justify-between items-center mb-2">
+                            <span>Conference Room A</span>
+                            <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">Available</span>
+                        </li>
+                        <li class="flex justify-between items-center mb-2">
+                            <span>Meeting Room 101</span>
+                            <span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">Booked</span>
+                        </li>
+                        <li class="flex justify-between items-center">
+                            <span>Auditorium</span>
+                            <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">Available</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Booking Section - Enhanced design -->
+        <div id="bookingSection" class="section">
+            <!-- Navigation header -->
+            <div class="flex items-center mb-6">
+                <button onclick="showSection('menuSection')" class="mr-4 flex items-center text-gray-600 hover:text-gray-900">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" />
+                    </svg>
+                    Back to Dashboard
+                </button>
+                <h2 class="text-2xl font-bold text-gray-900">Book a Venue</h2>
+            </div>
+                
+            <!-- Booking form container - Enhanced design -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <form id="bookingForm" class="space-y-6">
+                    <!-- Form layout in a 2-column grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Department selection -->
+                        <div>
+                            <label for="department" class="block text-sm font-medium text-gray-700 mb-2">
+                                Department
+                            </label>
+                            <select id="department" class="form-select block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                                <option value="">Select Department</option>
+                                <option value="Administration">Administration</option>
+                                <option value="Faculty">Faculty</option>
+                                <option value="Student">Student</option>
+                                <option value="Clubs">Clubs & Societies</option>
+                                <option value="IT">IT Services</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Booking title/purpose -->
+                        <div>
+                            <label for="title" class="block text-sm font-medium text-gray-700 mb-2">
+                                Booking Title/Purpose
+                            </label>
+                            <input type="text" id="title" placeholder="e.g., Math Club Meeting, Science Conference" class="form-input block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Attendee count - determines available venues -->
+                        <div>
+                            <label for="attendees" class="block text-sm font-medium text-gray-700 mb-2">
+                                Number of Attendees
+                            </label>
+                            <select id="attendees" class="form-select block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                                <option value="">Select Attendees</option>
+                                <option value="0-50">0-50</option>
+                                <option value="50-100">50-100</option>
+                                <option value="100-150">100-150</option>
+                                <option value="150-200">150-200</option>
+                                <option value="200+">200+</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Venue selection - options populated based on attendee count -->
+                        <div>
+                            <label for="venue" class="block text-sm font-medium text-gray-700 mb-2">
+                                Select Venue
+                            </label>
+                            <select id="venue" class="form-select block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required></select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- Date selection -->
+                        <div>
+                            <label for="date" class="block text-sm font-medium text-gray-700 mb-2">
+                                Select Date
+                            </label>
+                            <input type="date" id="date" class="form-input block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                        </div>
+                        
+                        <!-- Time selection - limited to operating hours -->
+                        <div>
+                            <label for="time" class="block text-sm font-medium text-gray-700 mb-2">
+                                Select Time
+                            </label>
+                            <input type="time" id="time" class="form-input block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" min="06:00" max="20:00" required>
+                        </div>
+
+                        <!-- Duration dropdown -->
+                        <div>
+                            <label for="duration" class="block text-sm font-medium text-gray-700 mb-2">
+                                Duration
+                            </label>
+                            <select id="duration" class="form-select block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="30">30 minutes</option>
+                                <option value="60" selected>1 hour</option>
+                                <option value="90">1.5 hours</option>
+                                <option value="120">2 hours</option>
+                                <option value="240">4 hours</option>
+                                <option value="custom">Custom</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Equipment section -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Equipment Required</label>
+                            <div class="mt-2 space-y-2">
+                                <!-- Projector option -->
+                                <div class="flex items-center">
+                                    <input type="checkbox" id="projectorRequired" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                                    <label for="projectorRequired" class="ml-2 block text-sm text-gray-700">
+                                        Projector
+                                    </label>
+                                </div>
+                                
+                                <!-- Speaker option -->
+                                <div class="flex items-center">
+                                    <input type="checkbox" id="speakerRequired" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                                    <label for="speakerRequired" class="ml-2 block text-sm text-gray-700">
+                                        Speaker System
+                                    </label>
+                                </div>
+
+                                <!-- Video conferencing option -->
+                                <div class="flex items-center">
+                                    <input type="checkbox" id="videoConf" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                                    <label for="videoConf" class="ml-2 block text-sm text-gray-700">
+                                        Video Conferencing
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Additional notes -->
+                        <div>
+                            <label for="notes" class="block text-sm font-medium text-gray-700 mb-2">
+                                Additional Notes
+                            </label>
+                            <textarea id="notes" rows="3" class="form-input block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="Special requirements or setup instructions"></textarea>
+                        </div>
+                    </div>
+                     
+                    <!-- Action buttons with improved styling -->
+                    <div class="flex justify-end pt-4">
+                        <button type="button" onclick="showSection('menuSection')" class="mr-4 px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            Cancel
+                        </button>
+                        <button type="submit" class="px-6 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            Book Venue
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- View Bookings Section - Enhanced design -->
+        <div id="viewSection" class="section">
+            <!-- Navigation header -->
+            <div class="flex justify-between items-center mb-6">
+                <div class="flex items-center">
+                    <button onclick="showSection('menuSection')" class="mr-4 flex items-center text-gray-600 hover:text-gray-900">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" />
+                        </svg>
+                        Back to Dashboard
+                    </button>
+                    <h2 class="text-2xl font-bold text-gray-900">View Bookings</h2>
+                </div>
+                
+                <!-- Filter toggle for personal bookings -->
+                <div class="flex items-center">
+                    <div class="flex items-center mr-4">
+                        <input type="checkbox" id="myBookingsOnly" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mr-2">
+                        <label for="myBookingsOnly" class="text-sm text-gray-600">Show my bookings only</label>
+                    </div>
+                    
+                    <!-- View toggle buttons -->
+                    <div class="bg-gray-200 rounded-md p-1 flex">
+                        <button id="calendarViewBtn" class="px-3 py-1 rounded-md bg-white shadow-sm text-sm font-medium text-gray-700">
+                            Calendar
+                        </button>
+                        <button id="listViewBtn" class="px-3 py-1 rounded-md text-sm font-medium text-gray-700">
+                            List
+                        </button>
+                    </div>
                 </div>
             </div>
 
             <!-- Calendar view of bookings -->
-            <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
-                <h2 class="text-2xl font-semibold text-gray-800 mb-4">Calendar View</h2>
+            <div id="calendarView" class="bg-white rounded-lg shadow-md p-6 mb-8">
                 <div id="calendar"></div>
             </div>
             
             <!-- List view of bookings -->
-            <div class="bg-white rounded-lg shadow-lg p-6">
-                <h2 class="text-2xl font-semibold text-gray-800 mb-6">Upcoming Bookings</h2>
-                <!-- Dynamic list of bookings -->
-                <ul id="bookingsList" class="divide-y divide-gray-200"></ul>
+            <div id="listView" class="bg-white rounded-lg shadow-md p-6 hidden">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Venue</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date & Time</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bookingsList" class="bg-white divide-y divide-gray-200">
+                            <!-- Booking rows will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
-    </div>
+    </main>
+
+    <!-- Footer section -->
+    <footer class="bg-white mt-8 py-6 border-t">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <p class="text-center text-gray-500 text-sm">
+                &copy; 2025 Venue Management System. All rights reserved.
+            </p>
+        </div>
+    </footer>
     
     <script>
-        // Will be populated from server
+        // Global variables
         let venues = {};
-
-        // Global calendar object
         let calendar;
 
         // Profile functionality
@@ -34,7 +455,7 @@
             const profileInitial = document.getElementById('profileInitial');
             const profileName = document.getElementById('profileName');
             
-            //Load existing profile data from localStorage
+            // Load existing profile data from localStorage
             loadProfileData();
             
             // Toggle dropdown visibility when profile button is clicked
@@ -132,6 +553,7 @@
             window.location.href = 'auth.html';
         }
 
+        // Initialize everything when the document is loaded
         document.addEventListener('DOMContentLoaded', function() {
             initializeProfile();
             initializeInterface();
@@ -139,16 +561,42 @@
             setMinDate();
             handleDateInput();
             initializeCalendar();
-            
-            // Load venues from server
             loadVenuesFromServer();
+            setupViewToggle();
         });
+        
+        // Setup view toggle buttons
+        function setupViewToggle() {
+            const calendarViewBtn = document.getElementById('calendarViewBtn');
+            const listViewBtn = document.getElementById('listViewBtn');
+            const calendarView = document.getElementById('calendarView');
+            const listView = document.getElementById('listView');
+            
+            calendarViewBtn.addEventListener('click', function() {
+                calendarViewBtn.classList.add('bg-white', 'shadow-sm');
+                listViewBtn.classList.remove('bg-white', 'shadow-sm');
+                calendarView.classList.remove('hidden');
+                listView.classList.add('hidden');
+                
+                // Refresh calendar when switching to its view
+                if (calendar) {
+                    calendar.render();
+                }
+            });
+            
+            listViewBtn.addEventListener('click', function() {
+                listViewBtn.classList.add('bg-white', 'shadow-sm');
+                calendarViewBtn.classList.remove('bg-white', 'shadow-sm');
+                listView.classList.remove('hidden');
+                calendarView.classList.add('hidden');
+            });
+        }
 
         function loadVenuesFromServer() {
             fetch("http://localhost:3004/api/venues")
                 .then(response => response.json())
                 .then(data => {
-                    // Transform server data to the format expected by the app
+                    // Transform server data
                     venues = {};
                     
                     // Group venues by capacity
@@ -166,8 +614,6 @@
                         });
                     });
                     
-                    console.log("Venues loaded from server:", venues);
-                    
                     // If attendees value is selected, update the venue dropdown
                     const attendees = document.getElementById('attendees').value;
                     if (attendees) {
@@ -181,7 +627,7 @@
                 });
         }
 
-        // Fallback function in case server doesn't respond
+        // Fallback function for venues data
         function initializeDefaultVenues() {
             venues = {
                 "0-50": [
@@ -220,12 +666,14 @@
                 const selected = this.value;
                 
                 // Show/hide speaker option based on attendee count
-                const speakerOption = document.getElementById('speakerOption');
+                const speakerOption = document.getElementById('speakerRequired');
                 if (selected === "100-150" || selected === "150-200" || selected === "200+") {
-                    speakerOption.style.display = 'block';
+                    speakerOption.parentElement.classList.remove('opacity-50');
+                    speakerOption.disabled = false;
                 } else {
-                    speakerOption.style.display = 'none';
-                    document.getElementById('speakerRequired').checked = false;
+                    speakerOption.parentElement.classList.add('opacity-50');
+                    speakerOption.disabled = true;
+                    speakerOption.checked = false;
                 }
 
                 // Update venue dropdown
@@ -277,10 +725,12 @@
             const venue = document.getElementById('venue').value;
             const date = document.getElementById('date').value;
             const time = document.getElementById('time').value;
+            const duration = document.getElementById('duration').value;
+            const notes = document.getElementById('notes').value;
             const username = localStorage.getItem('username');
             const projectorRequired = document.getElementById('projectorRequired').checked;
-            const speakerRequired = document.getElementById('speakerOption').style.display !== 'none' ? 
-                                document.getElementById('speakerRequired').checked : false;
+            const speakerRequired = document.getElementById('speakerRequired').checked;
+            const videoConfRequired = document.getElementById('videoConf').checked;
 
             fetch('http://localhost:3004/api/bookings', {
                 method: 'POST',
@@ -290,10 +740,13 @@
                     venue, 
                     date, 
                     time, 
+                    duration,
+                    notes,
                     username,
                     department,
                     projectorRequired,
-                    speakerRequired
+                    speakerRequired,
+                    videoConfRequired
                 })
             })
             .then(response => {
@@ -303,7 +756,7 @@
                 return response.json();
             })
             .then(data => {
-                alert(data.message);
+                alert(data.message || 'Booking successful!');
                 showSection('viewSection');
                 if (calendar) {
                     calendar.refetchEvents();
@@ -320,19 +773,26 @@
         }
 
         function deleteBooking(id) {
+            if (!confirm('Are you sure you want to delete this booking?')) {
+                return;
+            }
+            
             const username = localStorage.getItem('username');
             fetch(`http://localhost:3004/api/bookings/${id}?username=${username}`, {
                 method: 'DELETE'
             })
             .then(response => response.json())
             .then(data => {
-                alert(data.message);
+                alert(data.message || 'Booking deleted successfully');
                 loadBookings();
                 if (calendar) {
                     calendar.refetchEvents();
                 }
             })
-            .catch(error => console.error('Error:', error));
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to delete booking. Please try again.');
+            });
         }
 
         function loadBookings() {
@@ -346,49 +806,71 @@
             fetch(url)
                 .then(response => response.json())
                 .then(data => {
+                    // Update list view
                     const list = document.getElementById('bookingsList');
                     list.innerHTML = '';
 
                     if (data.length === 0) {
-                        list.innerHTML = '<li class="py-4 text-center text-gray-500">No bookings found</li>';
+                        list.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-gray-500">No bookings found</td></tr>';
                         return;
                     }
 
                     data.forEach(booking => {
-                        const startParts = booking.start.split('T');
+                        const startParts = booking.start ? booking.start.split('T') : ['', ''];
                         const canDelete = booking.username === username;
-                        const bookingTitle = booking.title || "Untitled Booking"; // Fallback if title is missing
-                        const venue = booking.venue || ""; // Add venue if available
-                        const department = booking.department || ""; // Display department information
+                        const bookingTitle = booking.title || "Untitled Booking";
+                        const venue = booking.venue || "N/A";
+                        const department = booking.department || "";
 
                         list.innerHTML += `
-                            <li class="py-4 flex justify-between items-center">
-                                <div>
-                                    <h3 class="text-lg font-medium text-gray-900">${bookingTitle}</h3>
-                                    <p class="text-sm text-gray-500">
-                                        ${startParts[0]} at ${startParts[1]} 
-                                        ${venue ? `| Venue: ${venue}` : ''}
-                                        ${department ? `| Department: ${department}` : ''}
-                                    </p>
-                                    ${!myBookingsOnly ? `<p class="text-xs text-gray-400">Booked by: ${booking.bookedBy || 'Unknown'}</p>` : ''}
-                                </div>
-                                ${canDelete ? `
-                                    <button onclick="deleteBooking(${booking.id})" 
-                                            class="bg-red-600 text-white px-3 py-1 rounded-md hover:bg-red-700">
-                                        Delete
-                                    </button>
-                                ` : ''}
-                            </li>`;
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm font-medium text-gray-900">${bookingTitle}</div>
+                                    <div class="text-sm text-gray-500">${department}</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${venue}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-gray-900">${startParts[0] || 'Date N/A'}</div>
+                                    <div class="text-sm text-gray-500">${startParts[1] || 'Time N/A'}</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                        Confirmed
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    ${canDelete ? `
+                                        <button onclick="editBooking(${booking.id})" class="text-indigo-600 hover:text-indigo-900 mr-3">
+                                            Edit
+                                        </button>
+                                        <button onclick="deleteBooking(${booking.id})" class="text-red-600 hover:text-red-900">
+                                            Cancel
+                                        </button>
+                                    ` : `
+                                        <span class="text-gray-400">View Only</span>
+                                    `}
+                                </td>
+                            </tr>`;
                     });
                 })
-                .catch(error => console.error('Error:', error));
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('bookingsList').innerHTML = 
+                        '<tr><td colspan="5" class="px-6 py-4 text-center text-red-500">Error loading bookings</td></tr>';
+                });
+        }
+
+        function editBooking(id) {
+            // This function would fetch the booking details and populate the booking form
+            // For now, we'll just alert that this feature is coming soon
+            alert('Edit booking feature coming soon!');
         }
 
         function initializeCalendar() {
             var calendarEl = document.getElementById('calendar');
             calendar = new FullCalendar.Calendar(calendarEl, {
                 initialView: 'dayGridMonth',
-                height: 450,
+                height: 500,
                 headerToolbar: {
                     left: 'prev,next today',
                     center: 'title',
@@ -405,35 +887,66 @@
                         let response = await fetch(url);
                         let bookings = await response.json();
 
-                        // Transform bookings to ensure each has a properly formatted title
+                        // Transform bookings for calendar display
                         const events = bookings.map(booking => {
                             return {
                                 id: booking.id,
-                                title: booking.title || "Untitled Booking", // Ensure title is set
+                                title: booking.title || "Untitled Booking",
                                 start: booking.start,
+                                end: booking.end,
                                 username: booking.username,
                                 venue: booking.venue,
                                 department: booking.department,
-                                // You can add custom styling for events here
-                                backgroundColor: booking.username === username ? '#4F46E5' : '#9CA3AF'
+                                // Custom styling based on ownership
+                                backgroundColor: booking.username === username ? '#4F46E5' : '#9CA3AF',
+                                borderColor: booking.username === username ? '#4338CA' : '#6B7280'
                             };
                         });
 
                         successCallback(events);
                     } catch (error) {
+                        console.error('Calendar error:', error);
                         failureCallback(error);
                     }
                 },
                 eventDidMount: function(info) {
-                    // Add venue and department information to the tooltip
-                    let tooltipContent = info.event.title;
+                    // Add tooltip with details
+                    let tooltipContent = `<strong>${info.event.title}</strong>`;
                     if (info.event.extendedProps.venue) {
-                        tooltipContent += ` (${info.event.extendedProps.venue})`;
+                        tooltipContent += `<br>Venue: ${info.event.extendedProps.venue}`;
                     }
                     if (info.event.extendedProps.department) {
-                        tooltipContent += ` - ${info.event.extendedProps.department}`;
+                        tooltipContent += `<br>Department: ${info.event.extendedProps.department}`;
                     }
-                    info.el.title = tooltipContent;
+                    
+                    // Use title attribute for simple tooltip
+                    info.el.title = tooltipContent.replace(/<[^>]*>?/gm, '');
+                },
+                eventClick: function(info) {
+                    // Show event details when clicked
+                    const event = info.event;
+                    const isMyEvent = event.extendedProps.username === localStorage.getItem('username');
+                    
+                    let detailsHtml = `
+                        <h3 class="text-lg font-bold mb-2">${event.title}</h3>
+                        <p><strong>Date:</strong> ${new Date(event.start).toLocaleDateString()}</p>
+                        <p><strong>Time:</strong> ${new Date(event.start).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                        <p><strong>Venue:</strong> ${event.extendedProps.venue || 'N/A'}</p>
+                        <p><strong>Department:</strong> ${event.extendedProps.department || 'N/A'}</p>
+                        <p><strong>Booked by:</strong> ${event.extendedProps.username || 'Unknown'}</p>
+                    `;
+                    
+                    if (isMyEvent) {
+                        detailsHtml += `
+                            <div class="mt-4">
+                                <button onclick="editBooking(${event.id})" class="bg-indigo-600 text-white px-3 py-1 rounded mr-2">Edit</button>
+                                <button onclick="deleteBooking(${event.id})" class="bg-red-600 text-white px-3 py-1 rounded">Cancel</button>
+                            </div>
+                        `;
+                    }
+                    
+                    // Use alert for now, but this would be better as a modal
+                    alert(detailsHtml.replace(/<[^>]*>?/gm, ''));
                 }
             });
             calendar.render();
@@ -467,13 +980,6 @@
             });
         }
 
-        // Calendar event handlers
-        document.addEventListener('fullcalendar_events_update', function() {
-            if (calendar) {
-                calendar.refetchEvents();
-            }
-        });
-
         // Automatically update bookings list and calendar periodically
         setInterval(function() {
             if (document.getElementById('viewSection').classList.contains('active')) {
@@ -482,269 +988,7 @@
                     calendar.refetchEvents();
                 }
             }
-        }, 30000); // Update every 30 seconds
+        }, 60000); // Update every minute
     </script>
 </body>
-</html><!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Venue Management</title>
-    <!-- External stylesheets and scripts -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/main.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
-    <style>
-          /* Custom style for select dropdowns with arrow indicator */
-        .form-select {
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-            background-position: right 0.5rem center;
-            background-repeat: no-repeat;
-            background-size: 1.5em 1.5em;
-            padding-right: 2.5rem;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-        }
-         /* Style for date picker icon */
-        input[type="date"]::-webkit-calendar-picker-indicator {
-            background-color: transparent;
-        }
-        
-        input[type="date"][disabled] {
-            color: #ccc;
-            background-color: #f9f9f9;
-            cursor: not-allowed;
-        }
-/* Section visibility management */
-        .section {
-            display: none;
-        }
-
-        .section.active {
-            display: block;
-        }
-
-        .menu-card {
-            transition: transform 0.2s;
-        }
-
-        .menu-card:hover {
-            transform: translateY(-5px);
-        }
-        
-        /* Profile styles */
-        #profileMenu {
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        }
-        
-        #profileButton {
-            transition: all 0.2s ease;
-        }
-        
-        #profileButton:hover {
-            background-color: #f3f4f6;
-        }
-    </style>
-</head>
-<body class="bg-gray-50">
-     <!-- Authentication check script -->
-    <script>
-    (function() {
-         // Immediate function to check if user is logged in
-        const username = localStorage.getItem('username');
-        if (!username) {
-            console.log("No user found, redirecting to auth page");
-            window.location.href = 'auth.html';
-        }
-    })();
-    </script>
-
-    <div class="container mx-auto px-4 py-8 max-w-3xl">
-        <div class="flex justify-between items-center mb-8">
-            <!-- Profile dropdown and heading -->
-            <div class="flex items-center space-x-4">
-                <!-- Profile dropdown -->
-                <div class="relative" id="profileDropdown">
-                    <button id="profileButton" class="flex items-center space-x-2 bg-white rounded-full p-1 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                        <div class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-lg" id="profileInitial"></div>
-                        <span class="hidden md:inline text-gray-800 font-medium" id="profileName"></span>
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-                        </svg>
-                    </button>
-                    
-                    <!-- Dropdown Menu -->
-                    <div id="profileMenu" class="hidden absolute left-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
-                        <h3 class="px-4 py-2 text-sm text-gray-500 border-b">User Profile</h3>
-                        
-                        <!-- Profile Form -->
-                        <div class="px-4 py-2">
-                            <div class="mb-3">
-                                <label for="profileUsername" class="block text-xs font-medium text-gray-700">Username</label>
-                                <input type="text" id="profileUsername" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm" disabled>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label for="profileFullName" class="block text-xs font-medium text-gray-700">Full Name</label>
-                                <input type="text" id="profileFullName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label for="profileEmail" class="block text-xs font-medium text-gray-700">Email</label>
-                                <input type="email" id="profileEmail" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
-                            </div>
-                            
-                            <button id="saveProfileBtn" class="w-full mt-3 bg-indigo-600 text-white px-3 py-1 rounded-md hover:bg-indigo-700 text-sm">
-                                Save Profile
-                            </button>
-                        </div>
-                        
-                        <div class="border-t border-gray-100"></div>
-                        
-                        <a href="#" id="logoutBtn" class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100">
-                            Logout
-                        </a>
-                    </div>
-                </div>
-                
-                <h1 class="text-2xl md:text-3xl font-bold text-gray-800">
-                    Conference Room & Venue Management
-                </h1>
-            </div>
-        </div>
- <!-- Welcome message container -->
-        <div class="text-center text-gray-600 mb-8" id="welcomeMessage"></div>
-
-        <!-- Main Menu Section -->
-        <div id="menuSection" class="section active">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Book a venue card -->
-                <div class="menu-card bg-white rounded-lg shadow-lg p-6 cursor-pointer" onclick="showSection('bookingSection')">
-                    <h2 class="text-2xl font-semibold text-gray-800 mb-4">Book a Venue</h2>
-                    <p class="text-gray-600">Schedule a new venue booking for your event</p>
-                </div>
-                <!-- View bookings card -->
-                <div class="menu-card bg-white rounded-lg shadow-lg p-6 cursor-pointer" onclick="showSection('viewSection')">
-                    <h2 class="text-2xl font-semibold text-gray-800 mb-4">View Bookings</h2>
-                    <p class="text-gray-600">Check all upcoming venue bookings</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Booking Section -->
-        <div id="bookingSection" class="section">
-             <!-- Back button to return to main menu -->
-            <button onclick="showSection('menuSection')" class="mb-6 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300">
-                Back to Menu
-            </button>
-             <!-- Booking form container -->
-            <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
-                <h2 class="text-2xl font-semibold text-gray-800 mb-6">Book a Venue</h2>
-                <form id="bookingForm" class="space-y-6">
-                    <!-- Department selection -->
-                    <div>
-                        <label for="department" class="block text-sm font-medium text-gray-700 mb-2">
-                            Department
-                        </label>
-                        <select id="department" class="form-select block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
-                            <option value="">Select Department</option>
-                            <option value="Administration">Administration</option>
-                            <option value="Faculty">Faculty</option>
-                            <option value="Student">Student</option>
-                            <option value="Clubs">Clubs & Societies</option>
-                            <option value="IT">IT Services</option>
-                            <option value="Other">Other</option>
-                        </select>
-                    </div>
-                    <!-- Booking title/purpose -->
-                    <div>
-                        <label for="title" class="block text-sm font-medium text-gray-700 mb-2">
-                            Booking Title/Purpose
-                        </label>
-                        <input type="text" id="title" placeholder="e.g., Math Club Meeting, Science Conference" class="form-input block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
-                    </div>
-                    <!-- Attendee count - determines available venues -->
-                    <div>
-                        <label for="attendees" class="block text-sm font-medium text-gray-700 mb-2">
-                            Number of Attendees
-                        </label>
-                        <select id="attendees" class="form-select block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
-                            <option value="">Select Attendees</option>
-                            <option value="0-50">0-50</option>
-                            <option value="50-100">50-100</option>
-                            <option value="100-150">100-150</option>
-                            <option value="150-200">150-200</option>
-                            <option value="200+">200+</option>
-                        </select>
-                    </div>
-                    <!-- Venue selection - options populated based on attendee count -->
-                    <div>
-                        <label for="venue" class="block text-sm font-medium text-gray-700 mb-2">
-                            Select Venue
-                        </label>
-                        <select id="venue" class="form-select block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required></select>
-                    </div>
-                     <!-- Projector option -->
-                    <div>
-                        <label for="projector" class="block text-sm font-medium text-gray-700 mb-2">
-                            Projector Required?
-                        </label>
-                        <div class="mt-1">
-                            <div class="flex items-center">
-                                <input type="checkbox" id="projectorRequired" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                                <label for="projectorRequired" class="ml-2 block text-sm text-gray-700">
-                                    Yes, I need a projector
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Speaker option - only visible for larger groups -->
-                    <div id="speakerOption" style="display: none;">
-                        <label for="speaker" class="block text-sm font-medium text-gray-700 mb-2">
-                            Speaker System Required?
-                        </label>
-                        <div class="mt-1">
-                            <div class="flex items-center">
-                                <input type="checkbox" id="speakerRequired" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                                <label for="speakerRequired" class="ml-2 block text-sm text-gray-700">
-                                    Yes, I need a speaker system
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Date selection -->
-                    <div>
-                        <label for="date" class="block text-sm font-medium text-gray-700 mb-2">
-                            Select Date
-                        </label>
-                        <input type="date" id="date" class="form-input block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
-                    </div>
-                    <!-- Time selection - limited to operating hours -->
-                    <div>
-                        <label for="time" class="block text-sm font-medium text-gray-700 mb-2">
-                            Select Time
-                        </label>
-                        <input type="time" id="time" class="form-input block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" min="06:00" max="20:00" required>
-                    </div>
-                     <!-- Submit button -->
-                    <button type="submit" class="w-full bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors duration-200">
-                        Book Venue
-                    </button>
-                </form>
-            </div>
-        </div>
-
-        <!-- View Bookings Section -->
-        <div id="viewSection" class="section">
-            <!-- Back button to return to main menu -->
-            <button onclick="showSection('menuSection')" class="mb-6 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300">
-                Back to Menu
-            </button>
-            
-            <!-- Filter toggle for personal bookings -->
-            <div class="flex justify-end mb-4">
-                <div class="flex items-center">
-                    <input type="checkbox" id="myBookingsOnly" class="mr-2
+</html>
