@@ -54,7 +54,213 @@
         </div>
 
         <div class="text-center text-gray-600 mb-8" id="welcomeMessage"></div>
+<!-- Analytics Section -->
+<div id="analyticsSection" class="section">
+    <div class="mb-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-2xl font-bold text-gray-800">Analytics Dashboard</h2>
+            <div class="flex space-x-2">
+                <select id="analytics-period" class="block py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    <option value="week">This Week</option>
+                    <option value="month" selected>This Month</option>
+                    <option value="quarter">This Quarter</option>
+                    <option value="year">This Year</option>
+                </select>
+                <button id="export-analytics" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition">
+                    <i class="fas fa-download mr-2"></i>Export Report
+                </button>
+            </div>
+    </div>
+</div>
 
+<!-- Include Chart.js for visualizations -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+
+<!-- Script to initialize Analytics Section -->
+<script>
+    // Initialize Analytics when section is shown
+    function showAnalyticsSection() {
+        // Check if Analytics is already initialized
+        if (!window.analyticsInitialized) {
+            // Load the chart data
+            loadAnalyticsDashboard('month');
+            window.analyticsInitialized = true;
+        }
+    }
+    
+    // Add a listener to the section selector if it exists
+    document.addEventListener('DOMContentLoaded', function() {
+        const analyticsLink = document.querySelector('a[onclick="showSection(\'analyticsSection\')"]');
+        if (analyticsLink) {
+            const originalOnClick = analyticsLink.getAttribute('onclick');
+            analyticsLink.setAttribute('onclick', originalOnClick + '; showAnalyticsSection();');
+        }
+    });
+</script>
+        </div>
+        
+        <!-- Analytics stats cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">Total Users</p>
+                        <p class="text-3xl font-bold text-gray-800 mt-1" id="totalUsers">0</p>
+                    </div>
+                    <div class="rounded-full p-3 bg-indigo-100 text-indigo-500">
+                        <i class="fas fa-users"></i>
+                    </div>
+                </div>
+                <div class="flex items-center mt-4">
+                    <span class="text-green-500 flex items-center text-sm font-medium">
+                        <i class="fas fa-arrow-up mr-1"></i> <span id="userGrowth">0</span>%
+                    </span>
+                    <span class="text-gray-400 text-sm ml-2">Since last month</span>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">Active Bookings</p>
+                        <p class="text-3xl font-bold text-gray-800 mt-1" id="activeBookings">0</p>
+                    </div>
+                    <div class="rounded-full p-3 bg-green-100 text-green-500">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                </div>
+                <div class="flex items-center mt-4">
+                    <span class="text-green-500 flex items-center text-sm font-medium">
+                        <i class="fas fa-arrow-up mr-1"></i> <span id="bookingGrowth">0</span>%
+                    </span>
+                    <span class="text-gray-400 text-sm ml-2">Since last week</span>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">Available Venues</p>
+                        <p class="text-3xl font-bold text-gray-800 mt-1" id="availableVenues">0</p>
+                    </div>
+                    <div class="rounded-full p-3 bg-blue-100 text-blue-500">
+                        <i class="fas fa-building"></i>
+                    </div>
+                </div>
+                <div class="flex items-center mt-4">
+                    <span class="text-gray-500 flex items-center text-sm font-medium">
+                        <i class="fas fa-info-circle mr-1"></i> Total capacity
+                    </span>
+                    <span class="text-gray-400 text-sm ml-2" id="totalCapacity">0 people</span>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">Booking Rate</p>
+                        <p class="text-3xl font-bold text-gray-800 mt-1" id="bookingRate">0%</p>
+                    </div>
+                    <div class="rounded-full p-3 bg-purple-100 text-purple-500">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                </div>
+                <div class="flex items-center mt-4">
+                    <span class="text-sm text-gray-500">
+                        Venues utilization rate
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Analytics charts grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <!-- Bookings by venue chart -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Bookings by Venue</h3>
+                <div id="bookingsByVenueChart" style="height: 350px;" class="text-center flex items-center justify-center">
+                    <div class="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">
+                        <p class="text-gray-500">Loading chart data...</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Bookings by department chart -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Bookings by Department</h3>
+                <div id="bookingsByDepartmentChart" style="height: 350px;" class="text-center flex items-center justify-center">
+                    <div class="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">
+                        <p class="text-gray-500">Loading chart data...</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Bookings trend chart -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Booking Trends Over Time</h3>
+                <div id="bookingsTrendChart" style="height: 350px;" class="text-center flex items-center justify-center">
+                    <div class="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">
+                        <p class="text-gray-500">Loading chart data...</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Equipment usage chart -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Equipment Usage</h3>
+                <div id="equipmentUsageChart" style="height: 350px;" class="text-center flex items-center justify-center">
+                    <div class="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">
+                        <p class="text-gray-500">Loading chart data...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Key metrics cards -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6 key-metrics">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Key Metrics</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="border rounded-lg p-4">
+                    <p class="text-gray-500 text-sm font-medium">Most Popular Venue</p>
+                    <p class="text-xl font-bold text-gray-800 mt-1 venue-name">Loading...</p>
+                    <div class="flex items-center mt-2">
+                        <span class="text-sm text-gray-500 booking-count">
+                            --- bookings
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="border rounded-lg p-4 peak-time">
+                    <p class="text-gray-500 text-sm font-medium">Peak Booking Time</p>
+                    <p class="text-xl font-bold text-gray-800 mt-1 time-range">Loading...</p>
+                    <div class="flex items-center mt-2">
+                        <span class="text-sm text-gray-500 booking-percentage">
+                            --% of all bookings
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="border rounded-lg p-4 top-department">
+                    <p class="text-gray-500 text-sm font-medium">Top Department</p>
+                    <p class="text-xl font-bold text-gray-800 mt-1 department-name">Loading...</p>
+                    <div class="flex items-center mt-2">
+                        <span class="text-sm text-gray-500 booking-count">
+                            --- bookings
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="border rounded-lg p-4 most-active-user">
+                    <p class="text-gray-500 text-sm font-medium">Most Active User</p>
+                    <p class="text-xl font-bold text-gray-800 mt-1 user-name">Loading...</p>
+                    <div class="flex items-center mt-2">
+                        <span class="text-sm text-gray-500 booking-count">
+                            --- bookings
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
         <!-- Main Menu Section -->
         <div id="menuSection" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div class="menu-card bg-white rounded-lg shadow-lg p-6 cursor-pointer" onclick="showSection('usersSection')">
@@ -223,6 +429,7 @@
                             Add Venue
                         </button>
                     </div>
+                    
                 </form>
             </div>
         </div>
@@ -587,6 +794,588 @@
                 }
             });
         }
+        // Analytics Dashboard - Frontend Implementation
+// Add this to your admin.html page or include as a separate script
+
+// Analytics Dashboard - Frontend Implementation
+
+// Initialize analytics when the document is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if we're on the analytics section or have analytics elements
+    if (document.getElementById('analyticsSection') || document.getElementById('dashboard-analytics')) {
+        initializeAnalytics();
+    }
+    
+    // Add event listener for analytics period selector if it exists
+    const periodSelector = document.getElementById('analytics-period');
+    if (periodSelector) {
+        periodSelector.addEventListener('change', function() {
+            loadAnalyticsDashboard(this.value);
+        });
+    }
+});
+
+// Helper function to safely access nested properties
+function safeValue(obj, path, defaultValue = 0) {
+    try {
+        const parts = path.split('.');
+        let current = obj;
+        
+        for (const part of parts) {
+            if (current == null || typeof current !== 'object') {
+                return defaultValue;
+            }
+            current = current[part];
+        }
+        
+        return current !== undefined ? current : defaultValue;
+    } catch (error) {
+        console.error(`Error accessing ${path}:`, error);
+        return defaultValue;
+    }
+}
+
+// Initialize analytics components
+function initializeAnalytics() {
+    // Load the analytics dashboard with default period (month)
+    loadAnalyticsDashboard('month');
+}
+
+// Main function to load all analytics data
+function loadAnalyticsDashboard(period = 'month') {
+    try {
+        showLoadingIndicator();
+        
+        // Fetch all analytics data in a single request
+        fetch(`http://localhost:3004/api/analytics/dashboard?period=${period}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to fetch analytics data');
+            }
+            return response.json();
+        })
+        .then(analyticsData => {
+            // Make sure we have a valid object even if some properties are missing
+            const safeData = analyticsData || {};
+            
+            // Update the dashboard with the fetched data
+            updateAnalyticsDashboard(safeData, period);
+            
+            hideLoadingIndicator();
+        })
+        .catch(error => {
+            console.error('Error loading analytics dashboard:', error);
+            showErrorMessage('Failed to load analytics data. Using demo data instead.');
+            
+            // Load demo data as a fallback
+            loadDemoData();
+            hideLoadingIndicator();
+        });
+    } catch (error) {
+        console.error('Exception in loadAnalyticsDashboard:', error);
+        loadDemoData();
+        hideLoadingIndicator();
+    }
+}
+
+// Update all analytics components with the fetched data
+function updateAnalyticsDashboard(data, period) {
+    // Update summary statistics
+    updateSummaryStats(data.summary || {});
+    
+    // Update charts and visualizations
+    createBookingsByVenueChart(data.bookingsByVenue || []);
+    createBookingsByDepartmentChart(data.bookingsByDepartment || []);
+    createMonthlyTrendChart(data.monthlyTrend || [], period);
+    createEquipmentUsageChart(data.equipmentUsage || { projector: {percentage: 0}, speaker: {percentage: 0} });
+    
+    // Update key metrics
+    updateKeyMetrics(data);
+}
+
+// Update the summary statistics cards
+function updateSummaryStats(summary) {
+    // Update total users
+    const totalUsersElement = document.getElementById('totalUsers');
+    if (totalUsersElement) {
+        totalUsersElement.textContent = safeValue(summary, 'users', 0);
+    }
+    
+    // Update active bookings
+    const activeBookingsElement = document.getElementById('activeBookings');
+    if (activeBookingsElement) {
+        activeBookingsElement.textContent = safeValue(summary, 'bookings', 0);
+    }
+    
+    // Update available venues
+    const availableVenuesElement = document.getElementById('availableVenues');
+    if (availableVenuesElement) {
+        availableVenuesElement.textContent = safeValue(summary, 'venues', 0);
+    }
+
+    // User growth (dummy value for demo if not available)
+    const userGrowthElement = document.getElementById('userGrowth');
+    if (userGrowthElement) {
+        userGrowthElement.textContent = safeValue(summary, 'userGrowth', 5);
+    }
+
+    // Booking growth (dummy value for demo if not available)
+    const bookingGrowthElement = document.getElementById('bookingGrowth');
+    if (bookingGrowthElement) {
+        bookingGrowthElement.textContent = safeValue(summary, 'bookingGrowth', 8);
+    }
+
+    // Total capacity
+    const totalCapacityElement = document.getElementById('totalCapacity');
+    if (totalCapacityElement) {
+        totalCapacityElement.textContent = `${safeValue(summary, 'totalCapacity', 500)} people`;
+    }
+
+    // Booking rate
+    const bookingRateElement = document.getElementById('bookingRate');
+    if (bookingRateElement) {
+        bookingRateElement.textContent = `${safeValue(summary, 'bookingRate', 65)}%`;
+    }
+}
+
+// Create the "Bookings by Venue" chart
+function createBookingsByVenueChart(bookingsByVenue) {
+    const chartContainer = document.getElementById('bookingsByVenueChart');
+    if (!chartContainer) return;
+    
+    // Clear the container
+    chartContainer.innerHTML = '';
+    
+    // If no data, show a message
+    if (!bookingsByVenue || bookingsByVenue.length === 0) {
+        chartContainer.innerHTML = '<p class="text-gray-500 flex items-center justify-center h-full">No venue booking data available</p>';
+        return;
+    }
+    
+    // Format data for the chart
+    const labels = bookingsByVenue.map(item => item.venue);
+    const values = bookingsByVenue.map(item => item.count);
+    const backgroundColors = generateColorArray(labels.length, 'blue');
+    
+    // Create a canvas element for the chart
+    const canvas = document.createElement('canvas');
+    chartContainer.appendChild(canvas);
+    
+    // Create the chart using Chart.js (assumes Chart.js is loaded)
+    new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Number of Bookings',
+                data: values,
+                backgroundColor: backgroundColors,
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Create the "Bookings by Department" chart
+function createBookingsByDepartmentChart(bookingsByDepartment) {
+    const chartContainer = document.getElementById('bookingsByDepartmentChart');
+    if (!chartContainer) return;
+    
+    // Clear the container
+    chartContainer.innerHTML = '';
+    
+    // If no data, show a message
+    if (!bookingsByDepartment || bookingsByDepartment.length === 0) {
+        chartContainer.innerHTML = '<p class="text-gray-500 flex items-center justify-center h-full">No department booking data available</p>';
+        return;
+    }
+    
+    // Format data for the chart
+    const labels = bookingsByDepartment.map(item => item.department);
+    const values = bookingsByDepartment.map(item => item.count);
+    const backgroundColors = generateColorArray(labels.length, 'green');
+    
+    // Create a canvas element for the chart
+    const canvas = document.createElement('canvas');
+    chartContainer.appendChild(canvas);
+    
+    // Create the chart using Chart.js
+    new Chart(canvas, {
+        type: 'pie',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: values,
+                backgroundColor: backgroundColors,
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.raw || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = Math.round((value / total) * 100);
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Create the "Monthly Trend" chart
+function createMonthlyTrendChart(monthlyTrend, period) {
+    const chartContainer = document.getElementById('bookingsTrendChart');
+    if (!chartContainer) return;
+    
+    // Clear the container
+    chartContainer.innerHTML = '';
+    
+    // If no data, show a message
+    if (!monthlyTrend || monthlyTrend.length === 0) {
+        chartContainer.innerHTML = '<p class="text-gray-500 flex items-center justify-center h-full">No trend data available</p>';
+        return;
+    }
+    
+    // Format the labels based on the period
+    const labels = monthlyTrend.map(item => {
+        return item.month; // Already formatted as YYYY-MM from the server
+    });
+    
+    const values = monthlyTrend.map(item => item.count);
+    
+    // Create a canvas element for the chart
+    const canvas = document.createElement('canvas');
+    chartContainer.appendChild(canvas);
+    
+    // Create the chart using Chart.js
+    new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Number of Bookings',
+                data: values,
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                tension: 0.1,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Create the "Equipment Usage" chart
+function createEquipmentUsageChart(equipmentUsage) {
+    const chartContainer = document.getElementById('equipmentUsageChart');
+    if (!chartContainer) return;
+    
+    // Clear the container
+    chartContainer.innerHTML = '';
+    
+    // If no data, show a message
+    if (!equipmentUsage) {
+        chartContainer.innerHTML = '<p class="text-gray-500 flex items-center justify-center h-full">No equipment usage data available</p>';
+        return;
+    }
+    
+    // Format data for the chart
+    const labels = ['Projector', 'Speaker System'];
+    const values = [
+        safeValue(equipmentUsage, 'projector.percentage', 0),
+        safeValue(equipmentUsage, 'speaker.percentage', 0)
+    ];
+    
+    // Create a canvas element for the chart
+    const canvas = document.createElement('canvas');
+    chartContainer.appendChild(canvas);
+    
+    // Create the chart using Chart.js
+    new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Usage Percentage',
+                data: values,
+                backgroundColor: ['rgba(54, 162, 235, 0.8)', 'rgba(255, 159, 64, 0.8)'],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.formattedValue + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Update key metrics section
+function updateKeyMetrics(data) {
+    // Find the most popular venue
+    let mostPopularVenue = { venue: 'None', count: 0 };
+    if (data.bookingsByVenue && data.bookingsByVenue.length > 0) {
+        mostPopularVenue = data.bookingsByVenue[0];
+    }
+    
+    // Update most popular venue
+    const venueNameElement = document.querySelector('.key-metrics .venue-name');
+    const venueCountElement = document.querySelector('.key-metrics .venue-name + div .booking-count');
+    
+    if (venueNameElement) {
+        venueNameElement.textContent = mostPopularVenue.venue || 'None';
+    }
+    
+    if (venueCountElement) {
+        venueCountElement.textContent = `${mostPopularVenue.count || 0} bookings`;
+    }
+    
+    // Update peak booking time
+    const peakTimeElement = document.querySelector('.key-metrics .time-range');
+    if (peakTimeElement && data.peakBookingTime) {
+        const hour = safeValue(data.peakBookingTime, 'hour', 9);
+        const formattedHour = hour > 12 ? (hour - 12) : hour;
+        const amPm = hour >= 12 ? 'PM' : 'AM';
+        const timeRange = `${formattedHour}:00 ${amPm} - ${formattedHour + 1}:00 ${amPm}`;
+        peakTimeElement.textContent = timeRange;
+    } else if (peakTimeElement) {
+        peakTimeElement.textContent = '9:00 AM - 10:00 AM';
+    }
+    
+    // Update peak booking percentage
+    const peakPercentageElement = document.querySelector('.key-metrics .booking-percentage');
+    if (peakPercentageElement) {
+        const percentage = safeValue(data, 'peakBookingTime.percentage', 15);
+        peakPercentageElement.textContent = `${percentage}% of all bookings`;
+    }
+    
+    // Update top department
+    const topDepartmentElement = document.querySelector('.key-metrics .department-name');
+    const departmentCountElement = document.querySelector('.key-metrics .department-name + div .booking-count');
+    
+    if (data.bookingsByDepartment && data.bookingsByDepartment.length > 0) {
+        const topDepartment = data.bookingsByDepartment[0];
+        
+        if (topDepartmentElement) {
+            topDepartmentElement.textContent = topDepartment.department || 'None';
+        }
+        
+        if (departmentCountElement) {
+            departmentCountElement.textContent = `${topDepartment.count || 0} bookings`;
+        }
+    } else {
+        if (topDepartmentElement) {
+            topDepartmentElement.textContent = 'IT Services';
+        }
+        if (departmentCountElement) {
+            departmentCountElement.textContent = '85 bookings';
+        }
+    }
+    
+    // Update most active user
+    const activeUserElement = document.querySelector('.key-metrics .user-name');
+    const userBookingCountElement = document.querySelector('.key-metrics .user-name + div .booking-count');
+    
+    if (activeUserElement) {
+        activeUserElement.textContent = safeValue(data, 'mostActiveUser.username', 'john.smith');
+    }
+    
+    if (userBookingCountElement) {
+        userBookingCountElement.textContent = `${safeValue(data, 'mostActiveUser.booking_count', 15)} bookings`;
+    }
+}
+
+// Add a demo data function
+function loadDemoData() {
+    const demoData = {
+        summary: {
+            users: 124,
+            bookings: 357,
+            venues: 8,
+            userGrowth: 5.2,
+            bookingGrowth: 7.8,
+            totalCapacity: 450,
+            bookingRate: 65
+        },
+        bookingsByVenue: [
+            {venue: "Conference Room A", count: 85},
+            {venue: "Conference Room B", count: 62},
+            {venue: "Auditorium", count: 48},
+            {venue: "Meeting Room 1", count: 76},
+            {venue: "Meeting Room 2", count: 86}
+        ],
+        bookingsByDepartment: [
+            {department: "Administration", count: 95},
+            {department: "Faculty", count: 78},
+            {department: "Student", count: 65},
+            {department: "Clubs", count: 72},
+            {department: "IT Services", count: 47}
+        ],
+        monthlyTrend: [
+            {month: "2023-07", count: 78},
+            {month: "2023-08", count: 84},
+            {month: "2023-09", count: 92},
+            {month: "2023-10", count: 88},
+            {month: "2023-11", count: 96},
+            {month: "2023-12", count: 105}
+        ],
+        equipmentUsage: {
+            projector: {count: 215, percentage: 60},
+            speaker: {count: 178, percentage: 50}
+        },
+        peakBookingTime: {hour: 10, count: 48, percentage: 15},
+        mostActiveUser: {username: "john.smith", booking_count: 24}
+    };
+    
+    updateAnalyticsDashboard(demoData, 'month');
+}
+
+// Helper function to generate an array of colors
+function generateColorArray(length, colorScheme = 'blue') {
+    const colors = [];
+    
+    // Different color schemes
+    const schemes = {
+        blue: [
+            'rgba(54, 162, 235, 0.8)',
+            'rgba(54, 162, 235, 0.7)',
+            'rgba(54, 162, 235, 0.6)',
+            'rgba(54, 162, 235, 0.5)',
+            'rgba(54, 162, 235, 0.4)'
+        ],
+        green: [
+            'rgba(75, 192, 192, 0.8)',
+            'rgba(75, 192, 192, 0.7)',
+            'rgba(75, 192, 192, 0.6)',
+            'rgba(75, 192, 192, 0.5)',
+            'rgba(75, 192, 192, 0.4)'
+        ],
+        rainbow: [
+            'rgba(255, 99, 132, 0.8)',
+            'rgba(54, 162, 235, 0.8)',
+            'rgba(255, 206, 86, 0.8)',
+            'rgba(75, 192, 192, 0.8)',
+            'rgba(153, 102, 255, 0.8)',
+            'rgba(255, 159, 64, 0.8)'
+        ]
+    };
+    
+    const schemeColors = schemes[colorScheme] || schemes.rainbow;
+    
+    // Generate colors based on the selected scheme
+    for (let i = 0; i < length; i++) {
+        colors.push(schemeColors[i % schemeColors.length]);
+    }
+    
+    return colors;
+}
+
+// UI Helper functions
+function showLoadingIndicator() {
+    // Check if loading indicator exists
+    let loadingIndicator = document.getElementById('analytics-loading');
+    
+    // If not, create one
+    if (!loadingIndicator) {
+        loadingIndicator = document.createElement('div');
+        loadingIndicator.id = 'analytics-loading';
+        loadingIndicator.className = 'fixed top-0 left-0 w-full h-full flex items-center justify-center bg-gray-900 bg-opacity-50 z-50';
+        loadingIndicator.innerHTML = `
+            <div class="bg-white p-5 rounded-lg shadow-lg text-center">
+                <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mx-auto"></div>
+                <p class="mt-3 text-gray-700">Loading analytics data...</p>
+            </div>
+        `;
+        document.body.appendChild(loadingIndicator);
+    } else {
+        loadingIndicator.classList.remove('hidden');
+    }
+}
+
+function hideLoadingIndicator() {
+    const loadingIndicator = document.getElementById('analytics-loading');
+    if (loadingIndicator) {
+        loadingIndicator.classList.add('hidden');
+    }
+}
+
+function showErrorMessage(message) {
+    // Create toast notification
+    const toast = document.createElement('div');
+    toast.className = 'fixed bottom-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+    toast.innerText = message;
+    
+    document.body.appendChild(toast);
+    
+    // Remove after 5 seconds
+    setTimeout(() => {
+        toast.remove();
+    }, 5000);
+}
+
+// Export functions for external use
+window.VenueAnalytics = {
+    loadAnalyticsDashboard,
+    updateAnalyticsDashboard,
+    createBookingsByVenueChart,
+    createBookingsByDepartmentChart,
+    createMonthlyTrendChart,
+    createEquipmentUsageChart,
+    loadDemoData
+};
     </script>
 </body>
 </html>

@@ -79,13 +79,17 @@ function fetchAnalyticsData() {
     
     // Fetch analytics data from the API
     fetch(`http://localhost:3004/api/analytics?startDate=${startDate}&endDate=${endDate}&venue=${venue}`)
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to fetch analytics data');
+            }
+            return response.json();
+        })
         .then(data => {
             updateDashboard(data);
         })
         .catch(error => {
             console.error('Error fetching analytics data:', error);
-            alert('Failed to load analytics data. Please try again later.');
             
             // For demo purposes, load dummy data
             loadDummyData();
@@ -158,6 +162,81 @@ function createVenueUtilizationChart(data) {
                 backgroundColor: 'rgba(79, 70, 229, 0.7)',
                 borderColor: 'rgba(79, 70, 229, 1)',
                 borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    title: {
+                        display: true,
+                        text: 'Utilization (%)'
+                    }
+                }
+            }
+        }
+    });
+}
+
+function createDepartmentBookingsChart(data) {
+    const ctx = document.getElementById('departmentBookingsChart').getContext('2d');
+    
+    // Destroy existing chart if it exists
+    if (window.departmentBookingsChart) {
+        window.departmentBookingsChart.destroy();
+    }
+    
+    window.departmentBookingsChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: data.departments,
+            datasets: [{
+                data: data.bookings,
+                backgroundColor: [
+                    'rgba(79, 70, 229, 0.7)',
+                    'rgba(52, 211, 153, 0.7)',
+                    'rgba(251, 191, 36, 0.7)',
+                    'rgba(239, 68, 68, 0.7)',
+                    'rgba(139, 92, 246, 0.7)',
+                    'rgba(59, 130, 246, 0.7)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                }
+            }
+        }
+    });
+}
+
+function createBookingsTrendChart(data) {
+    const ctx = document.getElementById('bookingsTrendChart').getContext('2d');
+    
+    // Destroy existing chart if it exists
+    if (window.bookingsTrendChart) {
+        window.bookingsTrendChart.destroy();
+    }
+    
+    window.bookingsTrendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.labels,
+            datasets: [{
+                label: 'Bookings',
+                data: data.values,
+                fill: false,
+                borderColor: 'rgba(79, 70, 229, 1)',
+                borderWidth: 2,
+                tension: 0.1
             }]
         },
         options: {
@@ -342,8 +421,8 @@ function updateBookingHistoryTable(data) {
                 <td class="px-6 py-4 whitespace-nowrap">${formattedDate} ${formattedTime}</td>
                 <td class="px-6 py-4 whitespace-nowrap">${booking.title}</td>
                 <td class="px-6 py-4 whitespace-nowrap">${booking.venue}</td>
-                <td class="px-6 py-4 whitespace-nowrap">${booking.department}</td>
-                <td class="px-6 py-4 whitespace-nowrap">${booking.attendees}</td>
+                <td class="px-6 py-4 whitespace-nowrap">${booking.department || 'N/A'}</td>
+                <td class="px-6 py-4 whitespace-nowrap">${booking.attendees || 'Unknown'}</td>
                 <td class="px-6 py-4 whitespace-nowrap">${equipmentText}</td>
             </tr>
         `;
@@ -490,19 +569,19 @@ function loadDummyData() {
             values: [32, 45, 38, 42]
         },
         equipmentUsage: {
-            equipment: ["Projector", "Speaker System", "Video Conferencing", "Whiteboard"],
-            usageCount: [87, 52, 43, 98]
+            equipment: ["Projector", "Speaker System"],
+            usageCount: [87, 52]
         },
         timeDistribution: {
             hours: ["8 AM", "9 AM", "10 AM", "11 AM", "12 PM", "1 PM", "2 PM", "3 PM", "4 PM", "5 PM"],
             counts: [8, 15, 22, 18, 12, 14, 19, 16, 11, 5]
         },
         capacityAnalysis: [
-            {venue: "Conference Room A", capacity: "50", avgAttendees: "42", efficiency: 84},
-            {venue: "Conference Room B", capacity: "30", avgAttendees: "22", efficiency: 73},
-            {venue: "Auditorium", capacity: "200", avgAttendees: "108", efficiency: 54},
-            {venue: "Meeting Room 1", capacity: "15", avgAttendees: "10", efficiency: 67},
-            {venue: "Meeting Room 2", capacity: "20", avgAttendees: "12", efficiency: 60}
+            {venue: "Conference Room A", capacity: "50", avgAttendees: 42, efficiency: 84},
+            {venue: "Conference Room B", capacity: "30", avgAttendees: 22, efficiency: 73},
+            {venue: "Auditorium", capacity: "200", avgAttendees: 108, efficiency: 54},
+            {venue: "Meeting Room 1", capacity: "15", avgAttendees: 10, efficiency: 67},
+            {venue: "Meeting Room 2", capacity: "20", avgAttendees: 12, efficiency: 60}
         ],
         departmentAnalysis: [
             {department: "Administration", totalBookings: 42, mostUsedVenue: "Conference Room A", avgDuration: 60, peakTime: "10:00 AM"},
@@ -512,88 +591,13 @@ function loadDummyData() {
             {department: "IT Services", totalBookings: 18, mostUsedVenue: "Conference Room B", avgDuration: 45, peakTime: "11:00 AM"}
         ],
         bookingHistory: [
-            {date: "2023-11-15", time: "10:00 AM", title: "Executive Meeting", venue: "Conference Room A", department: "Administration", attendees: "12", projectorRequired: true, speakerRequired: false},
-            {date: "2023-11-14", time: "2:00 PM", title: "Faculty Workshop", venue: "Meeting Room 1", department: "Faculty", attendees: "8", projectorRequired: true, speakerRequired: true},
-            {date: "2023-11-13", time: "3:00 PM", title: "Student Orientation", venue: "Auditorium", department: "Student", attendees: "150", projectorRequired: true, speakerRequired: true},
-            {date: "2023-11-12", time: "4:00 PM", title: "Chess Club Meeting", venue: "Meeting Room 2", department: "Clubs", attendees: "10", projectorRequired: false, speakerRequired: false},
-            {date: "2023-11-11", time: "11:00 AM", title: "IT Training", venue: "Conference Room B", department: "IT Services", attendees: "15", projectorRequired: true, speakerRequired: false}
+            {date: "2023-11-15", time: "10:00 AM", title: "Executive Meeting", venue: "Conference Room A", department: "Administration", attendees: 12, projectorRequired: true, speakerRequired: false},
+            {date: "2023-11-14", time: "2:00 PM", title: "Faculty Workshop", venue: "Meeting Room 1", department: "Faculty", attendees: 8, projectorRequired: true, speakerRequired: true},
+            {date: "2023-11-13", time: "3:00 PM", title: "Student Orientation", venue: "Auditorium", department: "Student", attendees: 150, projectorRequired: true, speakerRequired: true},
+            {date: "2023-11-12", time: "4:00 PM", title: "Chess Club Meeting", venue: "Meeting Room 2", department: "Clubs", attendees: 10, projectorRequired: false, speakerRequired: false},
+            {date: "2023-11-11", time: "11:00 AM", title: "IT Training", venue: "Conference Room B", department: "IT Services", attendees: 15, projectorRequired: true, speakerRequired: false}
         ]
     };
     
     updateDashboard(data);
 }
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    max: 100,
-                    title: {
-                        display: true,
-                        text: 'Utilization (%)'
-                    }
-                }
-            }
-        }
-    });
-}
-
-function createDepartmentBookingsChart(data) {
-    const ctx = document.getElementById('departmentBookingsChart').getContext('2d');
-    
-    // Destroy existing chart if it exists
-    if (window.departmentBookingsChart) {
-        window.departmentBookingsChart.destroy();
-    }
-    
-    window.departmentBookingsChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: data.departments,
-            datasets: [{
-                data: data.bookings,
-                backgroundColor: [
-                    'rgba(79, 70, 229, 0.7)',
-                    'rgba(52, 211, 153, 0.7)',
-                    'rgba(251, 191, 36, 0.7)',
-                    'rgba(239, 68, 68, 0.7)',
-                    'rgba(139, 92, 246, 0.7)',
-                    'rgba(59, 130, 246, 0.7)'
-                ],
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'right',
-                }
-            }
-        }
-    });
-}
-
-function createBookingsTrendChart(data) {
-    const ctx = document.getElementById('bookingsTrendChart').getContext('2d');
-    
-    // Destroy existing chart if it exists
-    if (window.bookingsTrendChart) {
-        window.bookingsTrendChart.destroy();
-    }
-    
-    window.bookingsTrendChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: data.labels,
-            datasets: [{
-                label: 'Bookings',
-                data: data.values,
-                fill: false,
-                borderColor: 'rgba(79, 70, 229, 1)',
-                borderWidth: 2,
-                tension: 0.1
-            }]
-        },
-        options: {

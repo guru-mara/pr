@@ -30,168 +30,6 @@
                 Back to App
             </button>
         </div>
-
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <div id="bookingDetails" class="mb-6 pb-6 border-b border-gray-200">
-                <h2 class="text-lg font-semibold text-gray-800 mb-4">Booking Details</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <p class="text-sm text-gray-500">Title</p>
-                        <p id="bookingTitle" class="font-medium">--</p>
-                    </div>
-                    <div>
-                        <p class="text-sm text-gray-500">Venue</p>
-                        <p id="bookingVenue" class="font-medium">--</p>
-                    </div>
-                    <div>
-                        <p class="text-sm text-gray-500">Date</p>
-                        <p id="bookingDate" class="font-medium">--</p>
-                    </div>
-                    <div>
-                        <p class="text-sm text-gray-500">Time</p>
-                        <p id="bookingTime" class="font-medium">--</p>
-                    </div>
-                </div>
-            </div>
-
-            <form id="feedbackForm" class="space-y-6">
-                <input type="hidden" id="bookingId">
-                
-                <div>
-                    <label for="actualAttendees" class="block text-sm font-medium text-gray-700 mb-1">
-                        Actual Number of Attendees
-                    </label>
-                    <input type="number" id="actualAttendees" min="1" class="form-input block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
-                </div>
-                
-                <div>
-                    <label for="duration" class="block text-sm font-medium text-gray-700 mb-1">
-                        Actual Duration (minutes)
-                    </label>
-                    <input type="number" id="duration" min="15" step="15" class="form-input block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-3">
-                        Equipment Used
-                    </label>
-                    <div class="space-y-2">
-                        <div class="flex items-center">
-                            <input type="checkbox" id="projectorUsed" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                            <label for="projectorUsed" class="ml-2 block text-sm text-gray-700">
-                                Projector
-                            </label>
-                        </div>
-                        <div class="flex items-center">
-                            <input type="checkbox" id="speakerUsed" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                            <label for="speakerUsed" class="ml-2 block text-sm text-gray-700">
-                                Speaker System
-                            </label>
-                        </div>
-                        <div class="flex items-center">
-                            <input type="checkbox" id="whiteboardUsed" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                            <label for="whiteboardUsed" class="ml-2 block text-sm text-gray-700">
-                                Whiteboard
-                            </label>
-                        </div>
-                        <div class="flex items-center">
-                            <input type="checkbox" id="videoConfUsed" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                            <label for="videoConfUsed" class="ml-2 block text-sm text-gray-700">
-                                Video Conferencing
-                            </label>
-                        </div>
-                    </div>
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Room Satisfaction
-                    </label>
-                    <div class="flex items-center space-x-1 mt-2">
-                        <button type="button" class="rating-btn p-2 rounded-full hover:bg-gray-100" data-rating="1">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                            </svg>
-                        </button>
-                        <button type="button" class="rating-btn p-2 rounded-full hover:bg-gray-100" data-rating="2">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                            </svg>
-                        </button>
-                        <button type="button" class="rating-btn p-2 rounded-full hover:bg-gray-100" data-rating="3">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                            </svg>
-                        </button>
-                        <button type="button" class="rating-btn p-2 rounded-full hover:bg-gray-100" data-rating="4">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                            </svg>
-                        </button>
-                        <button type="button" class="rating-btn p-2 rounded-full hover:bg-gray-100" data-rating="5">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                            </svg>
-                        </button>
-                    </div>
-                    <input type="hidden" id="rating" required>
-                </div>
-                
-                <div>
-                    <label for="issuesReported" class="block text-sm font-medium text-gray-700 mb-1">
-                        Issues Encountered (if any)
-                    </label>
-                    <textarea id="issuesReported" rows="3" class="form-textarea block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
-                </div>
-                
-                <div>
-                    <label for="comment" class="block text-sm font-medium text-gray-700 mb-1">
-                        Additional Comments
-                    </label>
-                    <textarea id="comment" rows="4" class="form-textarea block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
-                </div>
-                
-                <div class="flex justify-between items-center pt-4">
-                    <button type="button" id="suggestImprovementBtn" class="text-indigo-600 hover:text-indigo-500 font-medium">
-                        Suggest an improvement
-                    </button>
-                    <button type="submit" class="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors">
-                        Submit Feedback
-                    </button>
-                </div>
-            </form>
-        </div>
-        
-        <!-- Improvement Suggestion Modal -->
-        <div id="improvementModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center hidden">
-            <div class="bg-white rounded-lg p-6 max-w-md w-full">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4">Suggest an Improvement</h3>
-                <form id="improvementForm" class="space-y-4">
-                    <div>
-                        <label for="improvementType" class="block text-sm font-medium text-gray-700 mb-1">Improvement Type</label>
-                        <select id="improvementType" class="form-select block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
-                            <option value="">Select type</option>
-                            <option value="equipment">Equipment</option>
-                            <option value="facility">Facility</option>
-                            <option value="service">Service</option>
-                            <option value="other">Other</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="improvementDescription" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                        <textarea id="improvementDescription" rows="4" class="form-textarea block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required></textarea>
-                    </div>
-                    <div class="flex justify-end space-x-3 pt-4">
-                        <button type="button" id="cancelImprovementBtn" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300">
-                            Cancel
-                        </button>
-                        <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
-                            Submit Suggestion
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
     </div>
 
     <script>
@@ -405,5 +243,165 @@
             });
         }
     </script>
-</body>
-</html>
+
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <div id="bookingDetails" class="mb-6 pb-6 border-b border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">Booking Details</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-sm text-gray-500">Title</p>
+                        <p id="bookingTitle" class="font-medium">--</p>
+                    </div>
+                
+                <div class="flex justify-between items-center pt-4">
+                    <button type="button" id="suggestImprovementBtn" class="text-indigo-600 hover:text-indigo-500 font-medium">
+                        Suggest an improvement
+                    </button>
+                    <button type="submit" class="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors">
+                        Submit Feedback
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Improvement Suggestion Modal -->
+        <div id="improvementModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center hidden">
+            <div class="bg-white rounded-lg p-6 max-w-md w-full">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Suggest an Improvement</h3>
+                <form id="improvementForm" class="space-y-4">
+                    <div>
+                        <label for="improvementType" class="block text-sm font-medium text-gray-700 mb-1">Improvement Type</label>
+                        <select id="improvementType" class="form-select block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                            <option value="">Select type</option>
+                            <option value="equipment">Equipment</option>
+                            <option value="facility">Facility</option>
+                            <option value="service">Service</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="improvementDescription" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <textarea id="improvementDescription" rows="4" class="form-textarea block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required></textarea>
+                    </div>
+                    <div class="flex justify-end space-x-3 pt-4">
+                        <button type="button" id="cancelImprovementBtn" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300">
+                            Cancel
+                        </button>
+                        <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
+                            Submit Suggestion
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Room Satisfaction
+                    </label>
+                    <div class="flex items-center space-x-1 mt-2">
+                        <button type="button" class="rating-btn p-2 rounded-full hover:bg-gray-100" data-rating="1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                            </svg>
+                        </button>
+                        <button type="button" class="rating-btn p-2 rounded-full hover:bg-gray-100" data-rating="2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                            </svg>
+                        </button>
+                        <button type="button" class="rating-btn p-2 rounded-full hover:bg-gray-100" data-rating="3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                            </svg>
+                        </button>
+                        <button type="button" class="rating-btn p-2 rounded-full hover:bg-gray-100" data-rating="4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                            </svg>
+                        </button>
+                        <button type="button" class="rating-btn p-2 rounded-full hover:bg-gray-100" data-rating="5">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                            </svg>
+                        </button>
+                    </div>
+                    <input type="hidden" id="rating" required>
+                </div>
+                
+                <div>
+                    <label for="issuesReported" class="block text-sm font-medium text-gray-700 mb-1">
+                        Issues Encountered (if any)
+                    </label>
+                    <textarea id="issuesReported" rows="3" class="form-textarea block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+                </div>
+                
+                <div>
+                    <label for="comment" class="block text-sm font-medium text-gray-700 mb-1">
+                        Additional Comments
+                    </label>
+                    <textarea id="comment" rows="4" class="form-textarea block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+                </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Venue</p>
+                        <p id="bookingVenue" class="font-medium">--</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Date</p>
+                        <p id="bookingDate" class="font-medium">--</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Time</p>
+                        <p id="bookingTime" class="font-medium">--</p>
+                    </div>
+                </div>
+            </div>
+
+            <form id="feedbackForm" class="space-y-6">
+                <input type="hidden" id="bookingId">
+                
+                <div>
+                    <label for="actualAttendees" class="block text-sm font-medium text-gray-700 mb-1">
+                        Actual Number of Attendees
+                    </label>
+                    <input type="number" id="actualAttendees" min="1" class="form-input block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                </div>
+                
+                <div>
+                    <label for="duration" class="block text-sm font-medium text-gray-700 mb-1">
+                        Actual Duration (minutes)
+                    </label>
+                    <input type="number" id="duration" min="15" step="15" class="form-input block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-3">
+                        Equipment Used
+                    </label>
+                    <div class="space-y-2">
+                        <div class="flex items-center">
+                            <input type="checkbox" id="projectorUsed" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                            <label for="projectorUsed" class="ml-2 block text-sm text-gray-700">
+                                Projector
+                            </label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="speakerUsed" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                            <label for="speakerUsed" class="ml-2 block text-sm text-gray-700">
+                                Speaker System
+                            </label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="whiteboardUsed" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                            <label for="whiteboardUsed" class="ml-2 block text-sm text-gray-700">
+                                Whiteboard
+                            </label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="videoConfUsed" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                            <label for="videoConfUsed" class="ml-2 block text-sm text-gray-700">
+                                Video Conferencing
+                            </label>
+                        </div>
+                    </div>
