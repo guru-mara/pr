@@ -176,42 +176,41 @@
                     <div class="flex justify-between items-center">
                         <div class="text-center">
                             <p class="text-sm text-gray-500">Your Bookings</p>
-                            <p class="text-2xl font-bold text-indigo-600">3</p>
+                            <p id="userBookingsCount" class="text-2xl font-bold text-indigo-600">0</p>
                         </div>
                         <div class="text-center">
                             <p class="text-sm text-gray-500">This Week</p>
-                            <p class="text-2xl font-bold text-indigo-600">2</p>
+                            <p id="thisWeekCount" class="text-2xl font-bold text-indigo-600">0</p>
                         </div>
                         <div class="text-center">
                             <p class="text-sm text-gray-500">Upcoming</p>
-                            <p class="text-2xl font-bold text-indigo-600">5</p>
+                            <p id="upcomingCount" class="text-2xl font-bold text-indigo-600">0</p>
                         </div>
                     </div>
                 </div>
                 
                 <div class="bg-white rounded-lg shadow-md p-6">
                     <h3 class="text-lg font-semibold text-gray-800 mb-3">Next Booking</h3>
-                    <div class="text-sm text-gray-600">
-                        <p class="font-medium text-gray-900">Team Meeting</p>
-                        <p>Tomorrow at 10:00 AM</p>
-                        <p>Conference Room A</p>
+                    <div id="nextBookingContainer" class="text-sm text-gray-600">
+                        <div class="flex justify-center items-center h-16">
+                            <div class="animate-pulse flex space-x-2">
+                                <div class="h-2 w-2 bg-indigo-400 rounded-full"></div>
+                                <div class="h-2 w-2 bg-indigo-400 rounded-full"></div>
+                                <div class="h-2 w-2 bg-indigo-400 rounded-full"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
                 <div class="bg-white rounded-lg shadow-md p-6">
                     <h3 class="text-lg font-semibold text-gray-800 mb-3">Popular Venues</h3>
-                    <ul class="text-sm text-gray-600">
-                        <li class="flex justify-between items-center mb-2">
-                            <span>Conference Room A</span>
-                            <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">Available</span>
-                        </li>
-                        <li class="flex justify-between items-center mb-2">
-                            <span>Meeting Room 101</span>
-                            <span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">Booked</span>
-                        </li>
-                        <li class="flex justify-between items-center">
-                            <span>Auditorium</span>
-                            <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">Available</span>
+                    <ul id="popularVenuesList" class="text-sm text-gray-600">
+                        <li class="flex justify-center items-center h-16">
+                            <div class="animate-pulse flex space-x-2">
+                                <div class="h-2 w-2 bg-indigo-400 rounded-full"></div>
+                                <div class="h-2 w-2 bg-indigo-400 rounded-full"></div>
+                                <div class="h-2 w-2 bg-indigo-400 rounded-full"></div>
+                            </div>
                         </li>
                     </ul>
                 </div>
@@ -563,6 +562,7 @@
             initializeCalendar();
             loadVenuesFromServer();
             setupViewToggle();
+            loadDashboardData(); // Load real data for the dashboard
         });
         
         // Setup view toggle buttons
@@ -980,13 +980,201 @@
             });
         }
 
-        // Automatically update bookings list and calendar periodically
+        // Function to load dashboard data
+        function loadDashboardData() {
+            const username = localStorage.getItem('username');
+            
+            // Fetch all bookings to calculate statistics
+            fetch('http://localhost:3004/api/bookings')
+                .then(response => response.json())
+                .then(data => {
+                    // Update dashboard with real statistics
+                    updateQuickStats(data, username);
+                    updateNextBooking(data, username);
+                    updatePopularVenues();
+                })
+                .catch(error => {
+                    console.error('Error loading dashboard data:', error);
+                });
+        }
+
+        // Update quick stats with actual numbers
+        function updateQuickStats(bookings, username) {
+            // Filter for user's bookings
+            const userBookings = bookings.filter(booking => booking.username === username);
+            
+            // Calculate statistics
+            const today = new Date();
+            const nextWeek = new Date(today);
+            nextWeek.setDate(today.getDate() + 7);
+            
+            // Format dates for comparison
+            const todayStr = today.toISOString().split('T')[0];
+            const nextWeekStr = nextWeek.toISOString().split('T')[0];
+            
+            // Count bookings this week
+            const thisWeekBookings = userBookings.filter(booking => {
+                const bookingDate = booking.start.split('T')[0];
+                return bookingDate >= todayStr && bookingDate <= nextWeekStr;
+            });
+            
+            // Count upcoming bookings (all future bookings)
+            const upcomingBookings = userBookings.filter(booking => {
+                const bookingDate = booking.start.split('T')[0];
+                return bookingDate >= todayStr;
+            });
+            
+            // Update the stats in the UI
+            document.getElementById('userBookingsCount').textContent = userBookings.length;
+            document.getElementById('thisWeekCount').textContent = thisWeekBookings.length;
+            document.getElementById('upcomingCount').textContent = upcomingBookings.length;
+        }
+
+        // Find and display the next upcoming booking
+        function updateNextBooking(bookings, username) {
+            const userBookings = bookings.filter(booking => booking.username === username);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            // Sort bookings by date
+            const upcomingBookings = userBookings
+                .filter(booking => {
+                    const bookingDate = new Date(booking.start);
+                    return bookingDate >= today;
+                })
+                .sort((a, b) => {
+                    return new Date(a.start) - new Date(b.start);
+                });
+            
+            const nextBookingContainer = document.getElementById('nextBookingContainer');
+            
+            // If there are no upcoming bookings
+            if (upcomingBookings.length === 0) {
+                nextBookingContainer.innerHTML = `
+                    <p class="text-sm text-gray-600">No upcoming bookings</p>
+                `;
+                return;
+            }
+            
+            // Get the next booking
+            const nextBooking = upcomingBookings[0];
+            
+            // Format date and time
+            const bookingDate = new Date(nextBooking.start);
+            
+            // Format relative date (today, tomorrow, or the date)
+            let dateDisplay;
+            const todayDate = new Date();
+            const tomorrowDate = new Date(todayDate);
+            tomorrowDate.setDate(todayDate.getDate() + 1);
+            
+            if (bookingDate.toDateString() === todayDate.toDateString()) {
+                dateDisplay = 'Today';
+            } else if (bookingDate.toDateString() === tomorrowDate.toDateString()) {
+                dateDisplay = 'Tomorrow';
+            } else {
+                dateDisplay = bookingDate.toLocaleDateString('en-US', { 
+                    weekday: 'short', 
+                    month: 'short', 
+                    day: 'numeric' 
+                });
+            }
+            
+            // Format time
+            const timeDisplay = bookingDate.toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+            
+            // Update the next booking display
+            nextBookingContainer.innerHTML = `
+                <p class="font-medium text-gray-900">${nextBooking.title || 'Untitled Booking'}</p>
+                <p>${dateDisplay} at ${timeDisplay}</p>
+                <p>${nextBooking.venue || 'No venue specified'}</p>
+            `;
+        }
+
+        // Fetch and display popular venues with availability
+        function updatePopularVenues() {
+            // Fetch venues from server
+            fetch('http://localhost:3004/api/venues')
+                .then(response => response.json())
+                .then(venues => {
+                    // Fetch bookings to check availability
+                    fetch('http://localhost:3004/api/bookings')
+                        .then(response => response.json())
+                        .then(bookings => {
+                            displayPopularVenues(venues, bookings);
+                        });
+                })
+                .catch(error => {
+                    console.error('Error loading venues:', error);
+                    // Show fallback message
+                    document.getElementById('popularVenuesList').innerHTML = `
+                        <li class="text-sm text-gray-500">Unable to load venue data</li>
+                    `;
+                });
+        }
+
+        // Display popular venues with availability information
+        function displayPopularVenues(venues, bookings) {
+            const venuesList = document.getElementById('popularVenuesList');
+            venuesList.innerHTML = '';
+            
+            // Get today's bookings to check availability
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
+            const todayBookings = bookings.filter(booking => booking.start && booking.start.startsWith(todayStr));
+            
+            // Map of venue names to booking count (to determine popularity)
+            const venueBookingCount = {};
+            bookings.forEach(booking => {
+                if (booking.venue) {
+                    venueBookingCount[booking.venue] = (venueBookingCount[booking.venue] || 0) + 1;
+                }
+            });
+            
+            // Sort venues by booking count (popularity)
+            const popularVenues = [...venues].sort((a, b) => {
+                return (venueBookingCount[b.name] || 0) - (venueBookingCount[a.name] || 0);
+            }).slice(0, 3); // Take top 3
+            
+            // Display each popular venue with availability
+            popularVenues.forEach(venue => {
+                // Check if venue is booked today
+                const isBooked = todayBookings.some(booking => booking.venue === venue.name);
+                
+                venuesList.innerHTML += `
+                    <li class="flex justify-between items-center mb-2">
+                        <span>${venue.name}</span>
+                        <span class="bg-${isBooked ? 'red' : 'green'}-100 text-${isBooked ? 'red' : 'green'}-800 text-xs px-2 py-1 rounded-full">
+                            ${isBooked ? 'Booked' : 'Available'}
+                        </span>
+                    </li>
+                `;
+            });
+            
+            // If no venues found
+            if (popularVenues.length === 0) {
+                venuesList.innerHTML = `
+                    <li class="text-sm text-gray-500">No venue data available</li>
+                `;
+            }
+        }
+
+        // Automatically update data periodically
         setInterval(function() {
+            // Update view section if active
             if (document.getElementById('viewSection').classList.contains('active')) {
                 loadBookings();
                 if (calendar) {
                     calendar.refetchEvents();
                 }
+            }
+            
+            // Update dashboard data if on the menu page
+            if (document.getElementById('menuSection').classList.contains('active')) {
+                loadDashboardData();
             }
         }, 60000); // Update every minute
     </script>

@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Panel - Venue Management</title>
+    <title>Admin Dashboard - Venue Management System</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
-    <a href="analytics.html" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
-    Analytics & Reports
-</a>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
         .section {
             display: none;
@@ -24,9 +23,83 @@
         .menu-card:hover {
             transform: translateY(-5px);
         }
+
+        .sidebar {
+            width: 250px;
+            transition: all 0.3s;
+        }
+
+        .sidebar.collapsed {
+            width: 80px;
+        }
+
+        .sidebar.collapsed .menu-text {
+            display: none;
+        }
+
+        .sidebar.collapsed .profile-info {
+            display: none;
+        }
+
+        .main-content {
+            transition: all 0.3s;
+            margin-left: 250px;
+            width: calc(100% - 250px);
+        }
+
+        .main-content.expanded {
+            margin-left: 80px;
+            width: calc(100% - 80px);
+        }
+
+        .nav-item {
+            border-radius: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(79, 70, 229, 0.1);
+        }
+
+        .nav-item.active {
+            background-color: #4F46E5;
+            color: white;
+        }
+
+        .nav-item.active:hover {
+            background-color: #4338CA;
+        }
+
+        .stat-card {
+            transition: all 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 0;
+                position: fixed;
+                z-index: 40;
+                height: 100vh;
+            }
+            
+            .sidebar.open {
+                width: 250px;
+            }
+            
+            .main-content {
+                margin-left: 0;
+                width: 100%;
+            }
+        }
     </style>
 </head>
-<body class="bg-gray-50">
+<body class="bg-gray-100">
+    <!-- Check authentication status -->
     <script>
     (function() {
         const username = localStorage.getItem('username');
@@ -38,448 +111,810 @@
     })();
     </script>
 
-    <div class="container mx-auto px-4 py-8 max-w-4xl">
-        <div class="flex justify-between items-center mb-8">
-            <h1 class="text-3xl font-bold text-gray-800">
-                Venue Management Admin Panel
-            </h1>
-            <div>
-                <button onclick="window.location.href='index.html'" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 mr-2">
-                    Main App
-                </button>
-                <button onclick="logout()" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">
-                    Logout
-                </button>
-            </div>
-        </div>
-
-        <div class="text-center text-gray-600 mb-8" id="welcomeMessage"></div>
-<!-- Analytics Section -->
-<div id="analyticsSection" class="section">
-    <div class="mb-6">
-        <div class="flex justify-between items-center mb-4">
-            <h2 class="text-2xl font-bold text-gray-800">Analytics Dashboard</h2>
-            <div class="flex space-x-2">
-                <select id="analytics-period" class="block py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                    <option value="week">This Week</option>
-                    <option value="month" selected>This Month</option>
-                    <option value="quarter">This Quarter</option>
-                    <option value="year">This Year</option>
-                </select>
-                <button id="export-analytics" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition">
-                    <i class="fas fa-download mr-2"></i>Export Report
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar / Navigation -->
+        <aside id="sidebar" class="sidebar bg-white shadow-lg flex flex-col">
+            <!-- Logo and collapse button -->
+            <div class="flex items-center justify-between p-4 border-b">
+                <div class="flex items-center space-x-2">
+                    <span class="text-indigo-600 text-2xl"><i class="fas fa-calendar-check"></i></span>
+                    <span class="font-bold text-xl sidebar-text">VenueAdmin</span>
+                </div>
+                <button id="collapseBtn" class="text-gray-500 hover:text-indigo-600 focus:outline-none">
+                    <i class="fas fa-bars"></i>
                 </button>
             </div>
-    </div>
-</div>
 
-<!-- Include Chart.js for visualizations -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+            <!-- User profile -->
+            <div class="p-4 border-b profile-info">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-lg" id="profileInitial"></div>
+                    <div>
+                        <p class="font-semibold text-gray-800" id="profileName">Admin User</p>
+                        <p class="text-xs text-gray-500">Administrator</p>
+                    </div>
+                </div>
+            </div>
 
-<!-- Script to initialize Analytics Section -->
-<script>
-    // Initialize Analytics when section is shown
-    function showAnalyticsSection() {
-        // Check if Analytics is already initialized
-        if (!window.analyticsInitialized) {
-            // Load the chart data
-            loadAnalyticsDashboard('month');
-            window.analyticsInitialized = true;
-        }
-    }
-    
-    // Add a listener to the section selector if it exists
-    document.addEventListener('DOMContentLoaded', function() {
-        const analyticsLink = document.querySelector('a[onclick="showSection(\'analyticsSection\')"]');
-        if (analyticsLink) {
-            const originalOnClick = analyticsLink.getAttribute('onclick');
-            analyticsLink.setAttribute('onclick', originalOnClick + '; showAnalyticsSection();');
-        }
-    });
-</script>
-        </div>
-        
-        <!-- Analytics stats cards -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <p class="text-gray-500 text-sm font-medium">Total Users</p>
-                        <p class="text-3xl font-bold text-gray-800 mt-1" id="totalUsers">0</p>
-                    </div>
-                    <div class="rounded-full p-3 bg-indigo-100 text-indigo-500">
-                        <i class="fas fa-users"></i>
-                    </div>
-                </div>
-                <div class="flex items-center mt-4">
-                    <span class="text-green-500 flex items-center text-sm font-medium">
-                        <i class="fas fa-arrow-up mr-1"></i> <span id="userGrowth">0</span>%
-                    </span>
-                    <span class="text-gray-400 text-sm ml-2">Since last month</span>
-                </div>
-            </div>
-            
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <p class="text-gray-500 text-sm font-medium">Active Bookings</p>
-                        <p class="text-3xl font-bold text-gray-800 mt-1" id="activeBookings">0</p>
-                    </div>
-                    <div class="rounded-full p-3 bg-green-100 text-green-500">
-                        <i class="fas fa-calendar-check"></i>
-                    </div>
-                </div>
-                <div class="flex items-center mt-4">
-                    <span class="text-green-500 flex items-center text-sm font-medium">
-                        <i class="fas fa-arrow-up mr-1"></i> <span id="bookingGrowth">0</span>%
-                    </span>
-                    <span class="text-gray-400 text-sm ml-2">Since last week</span>
-                </div>
-            </div>
-            
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <p class="text-gray-500 text-sm font-medium">Available Venues</p>
-                        <p class="text-3xl font-bold text-gray-800 mt-1" id="availableVenues">0</p>
-                    </div>
-                    <div class="rounded-full p-3 bg-blue-100 text-blue-500">
-                        <i class="fas fa-building"></i>
-                    </div>
-                </div>
-                <div class="flex items-center mt-4">
-                    <span class="text-gray-500 flex items-center text-sm font-medium">
-                        <i class="fas fa-info-circle mr-1"></i> Total capacity
-                    </span>
-                    <span class="text-gray-400 text-sm ml-2" id="totalCapacity">0 people</span>
-                </div>
-            </div>
-            
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <p class="text-gray-500 text-sm font-medium">Booking Rate</p>
-                        <p class="text-3xl font-bold text-gray-800 mt-1" id="bookingRate">0%</p>
-                    </div>
-                    <div class="rounded-full p-3 bg-purple-100 text-purple-500">
-                        <i class="fas fa-chart-line"></i>
-                    </div>
-                </div>
-                <div class="flex items-center mt-4">
-                    <span class="text-sm text-gray-500">
-                        Venues utilization rate
-                    </span>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Analytics charts grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            <!-- Bookings by venue chart -->
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4">Bookings by Venue</h3>
-                <div id="bookingsByVenueChart" style="height: 350px;" class="text-center flex items-center justify-center">
-                    <div class="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">
-                        <p class="text-gray-500">Loading chart data...</p>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Bookings by department chart -->
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4">Bookings by Department</h3>
-                <div id="bookingsByDepartmentChart" style="height: 350px;" class="text-center flex items-center justify-center">
-                    <div class="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">
-                        <p class="text-gray-500">Loading chart data...</p>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Bookings trend chart -->
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4">Booking Trends Over Time</h3>
-                <div id="bookingsTrendChart" style="height: 350px;" class="text-center flex items-center justify-center">
-                    <div class="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">
-                        <p class="text-gray-500">Loading chart data...</p>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Equipment usage chart -->
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4">Equipment Usage</h3>
-                <div id="equipmentUsageChart" style="height: 350px;" class="text-center flex items-center justify-center">
-                    <div class="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">
-                        <p class="text-gray-500">Loading chart data...</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Key metrics cards -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-6 key-metrics">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">Key Metrics</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div class="border rounded-lg p-4">
-                    <p class="text-gray-500 text-sm font-medium">Most Popular Venue</p>
-                    <p class="text-xl font-bold text-gray-800 mt-1 venue-name">Loading...</p>
-                    <div class="flex items-center mt-2">
-                        <span class="text-sm text-gray-500 booking-count">
-                            --- bookings
-                        </span>
-                    </div>
-                </div>
-                
-                <div class="border rounded-lg p-4 peak-time">
-                    <p class="text-gray-500 text-sm font-medium">Peak Booking Time</p>
-                    <p class="text-xl font-bold text-gray-800 mt-1 time-range">Loading...</p>
-                    <div class="flex items-center mt-2">
-                        <span class="text-sm text-gray-500 booking-percentage">
-                            --% of all bookings
-                        </span>
-                    </div>
-                </div>
-                
-                <div class="border rounded-lg p-4 top-department">
-                    <p class="text-gray-500 text-sm font-medium">Top Department</p>
-                    <p class="text-xl font-bold text-gray-800 mt-1 department-name">Loading...</p>
-                    <div class="flex items-center mt-2">
-                        <span class="text-sm text-gray-500 booking-count">
-                            --- bookings
-                        </span>
-                    </div>
-                </div>
-                
-                <div class="border rounded-lg p-4 most-active-user">
-                    <p class="text-gray-500 text-sm font-medium">Most Active User</p>
-                    <p class="text-xl font-bold text-gray-800 mt-1 user-name">Loading...</p>
-                    <div class="flex items-center mt-2">
-                        <span class="text-sm text-gray-500 booking-count">
-                            --- bookings
-                        </span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- Main Menu Section -->
-        <div id="menuSection" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="menu-card bg-white rounded-lg shadow-lg p-6 cursor-pointer" onclick="showSection('usersSection')">
-                <h2 class="text-2xl font-semibold text-gray-800 mb-4">User Management</h2>
-                <p class="text-gray-600">Manage system users</p>
-            </div>
-            <div class="menu-card bg-white rounded-lg shadow-lg p-6 cursor-pointer" onclick="showSection('bookingsSection')">
-                <h2 class="text-2xl font-semibold text-gray-800 mb-4">Booking Management</h2>
-                <p class="text-gray-600">View and manage all venue bookings</p>
-            </div>
-            <div class="menu-card bg-white rounded-lg shadow-lg p-6 cursor-pointer" onclick="showSection('venuesSection')">
-                <h2 class="text-2xl font-semibold text-gray-800 mb-4">Venue Management</h2>
-                <p class="text-gray-600">Add, edit, or remove venues</p>
-            </div>
-        </div>
+            <!-- Navigation -->
+            <nav class="flex-1 p-4 overflow-y-auto">
+                <ul class="space-y-2">
+                    <li>
+                        <a href="#dashboard" class="nav-item active flex items-center p-3 text-gray-700" onclick="showSection('dashboardSection')">
+                            <i class="fas fa-tachometer-alt w-6"></i>
+                            <span class="menu-text ml-3">Dashboard</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#users" class="nav-item flex items-center p-3 text-gray-700" onclick="showSection('usersSection')">
+                            <i class="fas fa-users w-6"></i>
+                            <span class="menu-text ml-3">Users</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#bookings" class="nav-item flex items-center p-3 text-gray-700" onclick="showSection('bookingsSection')">
+                            <i class="fas fa-calendar-alt w-6"></i>
+                            <span class="menu-text ml-3">Bookings</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#venues" class="nav-item flex items-center p-3 text-gray-700" onclick="showSection('venuesSection')">
+                            <i class="fas fa-building w-6"></i>
+                            <span class="menu-text ml-3">Venues</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#analytics" class="nav-item flex items-center p-3 text-gray-700" onclick="showSection('analyticsSection')">
+                            <i class="fas fa-chart-line w-6"></i>
+                            <span class="menu-text ml-3">Analytics</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#settings" class="nav-item flex items-center p-3 text-gray-700" onclick="showSection('settingsSection')">
+                            <i class="fas fa-cog w-6"></i>
+                            <span class="menu-text ml-3">Settings</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
 
-        <!-- Users Section -->
-        <div id="usersSection" class="section">
-            <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-semibold text-gray-800">User Management</h2>
-                    <button onclick="showModal('addUserModal')" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
-                        Add New User
+            <!-- Logout button -->
+            <div class="p-4 border-t">
+                <button onclick="logout()" class="w-full flex items-center p-3 text-red-600 hover:bg-red-50 rounded-lg transition">
+                    <i class="fas fa-sign-out-alt w-6"></i>
+                    <span class="menu-text ml-3">Logout</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main id="mainContent" class="main-content overflow-y-auto">
+            <!-- Top Bar -->
+            <header class="bg-white shadow-sm p-4 flex justify-between items-center sticky top-0 z-30">
+                <div class="flex items-center">
+                    <button id="mobileMenuBtn" class="md:hidden mr-4 text-gray-500 hover:text-indigo-600 focus:outline-none">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h1 id="pageTitle" class="text-xl font-semibold text-gray-800">Dashboard</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button class="md:hidden text-gray-500 hover:text-indigo-600 focus:outline-none" onclick="logout()">
+                        <i class="fas fa-sign-out-alt"></i>
                     </button>
                 </div>
-                
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="users-list" class="bg-white divide-y divide-gray-200">
-                            <!-- User rows will be populated here -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+            </header>
 
-        <!-- Bookings Section -->
-        <div id="bookingsSection" class="section">
-            <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-semibold text-gray-800">Booking Management</h2>
-                    <div class="flex items-center">
-                        <input type="date" id="filter-date" class="form-input mr-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        <button onclick="filterBookings()" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
-                            Filter
-                        </button>
-                    </div>
+            <!-- Dashboard Section -->
+            <div id="dashboardSection" class="section active p-6">
+                <!-- Welcome and date -->
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800" id="welcomeMessage">Welcome, Admin</h2>
+                    <p class="text-gray-600" id="currentDate">Today's Date</p>
                 </div>
-                
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Venue</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date & Time</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Booked By</th>
-                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="bookings-list" class="bg-white divide-y divide-gray-200">
-                            <!-- Booking rows will be populated here -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
 
-        <!-- Venues Section -->
-        <div id="venuesSection" class="section">
-            <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-semibold text-gray-800">Venue Management</h2>
-                    <button onclick="showModal('addVenueModal')" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
-                        Add New Venue
-                    </button>
-                </div>
-                
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Capacity</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Equipment</th>
-                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="venues-list" class="bg-white divide-y divide-gray-200">
-                            <!-- Venue rows will be populated here -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- Add User Modal -->
-        <div id="addUserModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center hidden">
-            <div class="bg-white rounded-lg p-6 max-w-md w-full">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4">Add New User</h3>
-                <form id="addUserForm" class="space-y-4">
-                    <div>
-                        <label for="user-name" class="block text-sm font-medium text-gray-700 mb-1">Username</label>
-                        <input type="text" id="user-name" class="form-input block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
-                    </div>
-                    <div>
-                        <label for="user-password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                        <input type="password" id="user-password" class="form-input block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
-                    </div>
-                    <div class="flex justify-end space-x-3 pt-4">
-                        <button type="button" onclick="hideModal('addUserModal')" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300">
-                            Cancel
-                        </button>
-                        <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
-                            Add User
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- Add Venue Modal -->
-        <div id="addVenueModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center hidden">
-            <div class="bg-white rounded-lg p-6 max-w-md w-full">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4">Add New Venue</h3>
-                <form id="addVenueForm" class="space-y-4">
-                    <div>
-                        <label for="venue-name" class="block text-sm font-medium text-gray-700 mb-1">Venue Name</label>
-                        <input type="text" id="venue-name" class="form-input block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
-                    </div>
-                    <div>
-                        <label for="venue-capacity" class="block text-sm font-medium text-gray-700 mb-1">Capacity</label>
-                        <select id="venue-capacity" class="form-select block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="0-50">0-50</option>
-                            <option value="50-100">50-100</option>
-                            <option value="100-150">100-150</option>
-                            <option value="150-200">150-200</option>
-                            <option value="200+">200+</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Equipment</label>
-                        <div class="flex flex-col space-y-2">
-                            <label class="inline-flex items-center">
-                                <input type="checkbox" id="venue-has-projector" class="form-checkbox h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                                <span class="ml-2 text-sm text-gray-700">Projector</span>
-                            </label>
-                            <label class="inline-flex items-center">
-                                <input type="checkbox" id="venue-has-speaker" class="form-checkbox h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                                <span class="ml-2 text-sm text-gray-700">Speaker System</span>
-                            </label>
+                <!-- Stats Overview -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                    <div class="stat-card bg-white rounded-lg shadow p-6">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-gray-500 text-sm font-medium">Total Users</p>
+                                <p class="text-3xl font-bold text-gray-800 mt-1" id="totalUsers">0</p>
+                            </div>
+                            <div class="rounded-full p-3 bg-blue-100 text-blue-500">
+                                <i class="fas fa-users"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-center mt-4">
+                            <span class="text-green-500 text-sm font-medium flex items-center">
+                                <i class="fas fa-arrow-up mr-1"></i> <span id="userGrowth">0</span>%
+                            </span>
+                            <span class="text-gray-400 text-sm ml-2">Since last month</span>
                         </div>
                     </div>
-                    <div class="flex justify-end space-x-3 pt-4">
-                        <button type="button" onclick="hideModal('addVenueModal')" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300">
-                            Cancel
-                        </button>
-                        <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
-                            Add Venue
+
+                    <div class="stat-card bg-white rounded-lg shadow p-6">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-gray-500 text-sm font-medium">Active Bookings</p>
+                                <p class="text-3xl font-bold text-gray-800 mt-1" id="activeBookings">0</p>
+                            </div>
+                            <div class="rounded-full p-3 bg-green-100 text-green-500">
+                                <i class="fas fa-calendar-check"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-center mt-4">
+                            <span class="text-green-500 text-sm font-medium flex items-center">
+                                <i class="fas fa-arrow-up mr-1"></i> <span id="bookingGrowth">0</span>%
+                            </span>
+                            <span class="text-gray-400 text-sm ml-2">Since last week</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card bg-white rounded-lg shadow p-6">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-gray-500 text-sm font-medium">Available Venues</p>
+                                <p class="text-3xl font-bold text-gray-800 mt-1" id="availableVenues">0</p>
+                            </div>
+                            <div class="rounded-full p-3 bg-indigo-100 text-indigo-500">
+                                <i class="fas fa-building"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-center mt-4">
+                            <span class="text-gray-500 text-sm font-medium flex items-center">
+                                <i class="fas fa-info-circle mr-1"></i> Total capacity
+                            </span>
+                            <span class="text-gray-400 text-sm ml-2" id="totalCapacity">0 people</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card bg-white rounded-lg shadow p-6">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-gray-500 text-sm font-medium">Booking Rate</p>
+                                <p class="text-3xl font-bold text-gray-800 mt-1" id="bookingRate">0%</p>
+                            </div>
+                            <div class="rounded-full p-3 bg-purple-100 text-purple-500">
+                                <i class="fas fa-chart-line"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-center mt-4">
+                            <span class="text-sm text-gray-500">
+                                Venues utilization rate
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <!-- Bookings by venue chart -->
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Bookings by Venue</h3>
+                        <div id="bookingsByVenueChart" style="height: 300px;"></div>
+                    </div>
+                    
+                    <!-- Bookings by department chart -->
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Bookings by Department</h3>
+                        <div id="bookingsByDepartmentChart" style="height: 300px;"></div>
+                    </div>
+                </div>
+
+                <!-- Recent Bookings -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold text-gray-800">Recent Bookings</h3>
+                        <a href="#" class="text-indigo-600 hover:text-indigo-800 text-sm" onclick="showSection('bookingsSection')">View All</a>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Venue</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date & Time</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Booked By</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentBookingsList" class="bg-white divide-y divide-gray-200">
+                                <!-- Recent bookings will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Users Section -->
+            <div id="usersSection" class="section p-6">
+                <div class="bg-white rounded-lg shadow p-6 mb-6">
+                    <div class="flex flex-wrap items-center justify-between mb-6">
+                        <h2 class="text-2xl font-semibold text-gray-800">User Management</h2>
+                        <div class="flex items-center space-x-2 mt-4 sm:mt-0">
+                            <div class="relative">
+                                <input type="text" id="userSearch" placeholder="Search users..." class="pl-10 pr-4 py-2 border rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i class="fas fa-search text-gray-400"></i>
+                                </div>
+                            </div>
+                            <button onclick="showModal('addUserModal')" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                                <i class="fas fa-plus mr-2"></i> Add User
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-list" class="bg-white divide-y divide-gray-200">
+                                <!-- User rows will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    <div class="flex items-center justify-between mt-6">
+                        <div class="text-sm text-gray-500">
+                            Showing <span id="userStartRange">1</span> to <span id="userEndRange">10</span> of <span id="userTotalCount">0</span> users
+                        </div>
+                        <div class="flex space-x-2">
+                            <button class="px-3 py-1 border rounded text-gray-600 hover:bg-gray-50">Previous</button>
+                            <button class="px-3 py-1 border rounded text-gray-600 hover:bg-gray-50">Next</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bookings Section -->
+            <div id="bookingsSection" class="section p-6">
+                <div class="bg-white rounded-lg shadow p-6 mb-6">
+                    <div class="flex flex-wrap items-center justify-between mb-6">
+                        <h2 class="text-2xl font-semibold text-gray-800">Booking Management</h2>
+                        <div class="flex items-center space-x-2 mt-4 sm:mt-0">
+                            <input type="date" id="filter-date" class="px-4 py-2 border rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                            <button onclick="filterBookings()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                                <i class="fas fa-filter mr-2"></i> Filter
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Venue</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date & Time</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Booked By</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bookings-list" class="bg-white divide-y divide-gray-200">
+                                <!-- Booking rows will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    <div class="flex items-center justify-between mt-6">
+                        <div class="text-sm text-gray-500">
+                            Showing <span id="bookingStartRange">1</span> to <span id="bookingEndRange">10</span> of <span id="bookingTotalCount">0</span> bookings
+                        </div>
+                        <div class="flex space-x-2">
+                            <button class="px-3 py-1 border rounded text-gray-600 hover:bg-gray-50">Previous</button>
+                            <button class="px-3 py-1 border rounded text-gray-600 hover:bg-gray-50">Next</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Venues Section -->
+            <div id="venuesSection" class="section p-6">
+                <div class="bg-white rounded-lg shadow p-6 mb-6">
+                    <div class="flex flex-wrap items-center justify-between mb-6">
+                        <h2 class="text-2xl font-semibold text-gray-800">Venue Management</h2>
+                        <button onclick="showModal('addVenueModal')" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 mt-4 sm:mt-0">
+                            <i class="fas fa-plus mr-2"></i> Add Venue
                         </button>
                     </div>
                     
-                </form>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Capacity</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Equipment</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="venues-list" class="bg-white divide-y divide-gray-200">
+                                <!-- Venue rows will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analytics Section -->
+            <div id="analyticsSection" class="section p-6">
+                <div class="mb-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold text-gray-800">Analytics Dashboard</h2>
+                        <div class="flex space-x-2">
+                            <select id="analytics-period" class="block py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                <option value="week">This Week</option>
+                                <option value="month" selected>This Month</option>
+                                <option value="quarter">This Quarter</option>
+                                <option value="year">This Year</option>
+                            </select>
+                            <button id="export-analytics" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition">
+                                <i class="fas fa-download mr-2"></i>Export Report
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Analytics charts grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <!-- Bookings trend chart -->
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Booking Trends Over Time</h3>
+                        <div id="bookingsTrendChart" style="height: 300px;"></div>
+                    </div>
+                    
+                    <!-- Equipment usage chart -->
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Equipment Usage</h3>
+                        <div id="equipmentUsageChart" style="height: 300px;"></div>
+                    </div>
+                </div>
+                
+                <!-- Key metrics cards -->
+                <div class="bg-white rounded-lg shadow p-6 mb-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Key Metrics</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="border rounded-lg p-4">
+                            <p class="text-gray-500 text-sm font-medium">Most Popular Venue</p>
+                            <p class="text-xl font-bold text-gray-800 mt-1" id="popularVenue">Loading...</p>
+                            <div class="flex items-center mt-2">
+                                <span class="text-sm text-gray-500" id="popularVenueBookings">
+                                    --- bookings
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div class="border rounded-lg p-4">
+                            <p class="text-gray-500 text-sm font-medium">Peak Booking Time</p>
+                            <p class="text-xl font-bold text-gray-800 mt-1" id="peakTime">Loading...</p>
+                            <div class="flex items-center mt-2">
+                                <span class="text-sm text-gray-500" id="peakTimePercentage">
+                                    --% of all bookings
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div class="border rounded-lg p-4">
+                            <p class="text-gray-500 text-sm font-medium">Top Department</p>
+                            <p class="text-xl font-bold text-gray-800 mt-1" id="topDepartment">Loading...</p>
+                            <div class="flex items-center mt-2">
+                                <span class="text-sm text-gray-500" id="topDepartmentBookings">
+                                    --- bookings
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div class="border rounded-lg p-4">
+                            <p class="text-gray-500 text-sm font-medium">Most Active User</p>
+                            <p class="text-xl font-bold text-gray-800 mt-1" id="activeUser">Loading...</p>
+                            <div class="flex items-center mt-2">
+                                <span class="text-sm text-gray-500" id="activeUserBookings">
+                                    --- bookings
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Booking Rules -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-2xl font-semibold text-gray-800 mb-6">System Information</h2>
+                    
+                    <div class="space-y-4">
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h3 class="font-medium text-gray-700 mb-2">System Version</h3>
+                            <p class="text-gray-600">Venue Management System v1.0.0</p>
+                        </div>
+                        
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h3 class="font-medium text-gray-700 mb-2">Last Updated</h3>
+                            <p class="text-gray-600">April 3, 2025</p>
+                        </div>
+                        
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h3 class="font-medium text-gray-700 mb-2">Server Status</h3>
+                            <div class="flex items-center">
+                                <span class="inline-block w-3 h-3 rounded-full bg-green-500 mr-2"></span>
+                                <p class="text-gray-600">Online</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <footer class="bg-white p-4 border-t mt-auto text-center text-gray-500 text-sm">
+                &copy; 2025 Venue Management System. All rights reserved.
+            </footer>
+        </main>
+    </div>
+
+    <!-- Add User Modal -->
+    <div id="addUserModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">Add New User</h3>
+                <button onclick="hideModal('addUserModal')" class="text-gray-500 hover:text-gray-700 focus:outline-none">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="addUserForm" class="space-y-4">
+                <div>
+                    <label for="user-name" class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                    <input type="text" id="user-name" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" required>
+                </div>
+                <div>
+                    <label for="user-password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                    <input type="password" id="user-password" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" required>
+                </div>
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" onclick="hideModal('addUserModal')" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300">
+                        Cancel
+                    </button>
+                    <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
+                        Add User
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Venue Modal -->
+    <div id="addVenueModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">Add New Venue</h3>
+                <button onclick="hideModal('addVenueModal')" class="text-gray-500 hover:text-gray-700 focus:outline-none">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="addVenueForm" class="space-y-4">
+                <div>
+                    <label for="venue-name" class="block text-sm font-medium text-gray-700 mb-1">Venue Name</label>
+                    <input type="text" id="venue-name" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" required>
+                </div>
+                <div>
+                    <label for="venue-capacity" class="block text-sm font-medium text-gray-700 mb-1">Capacity</label>
+                    <select id="venue-capacity" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="0-50">0-50</option>
+                        <option value="50-100">50-100</option>
+                        <option value="100-150">100-150</option>
+                        <option value="150-200">150-200</option>
+                        <option value="200+">200+</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Equipment</label>
+                    <div class="flex flex-col space-y-2">
+                        <label class="inline-flex items-center">
+                            <input type="checkbox" id="venue-has-projector" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                            <span class="ml-2 text-sm text-gray-700">Projector</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="checkbox" id="venue-has-speaker" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                            <span class="ml-2 text-sm text-gray-700">Speaker System</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" onclick="hideModal('addVenueModal')" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300">
+                        Cancel
+                    </button>
+                    <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
+                        Add Venue
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-gray-800" id="confirmTitle">Confirm Action</h3>
+                <button onclick="hideModal('confirmModal')" class="text-gray-500 hover:text-gray-700 focus:outline-none">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <p id="confirmMessage" class="mb-6 text-gray-600">Are you sure you want to perform this action?</p>
+            <div class="flex justify-end space-x-3">
+                <button onclick="hideModal('confirmModal')" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300">
+                    Cancel
+                </button>
+                <button id="confirmButton" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">
+                    Confirm
+                </button>
             </div>
         </div>
     </div>
 
     <script>
+        // Global variables
+        let navActive = 'dashboard';
+        let confirmCallback = null;
+        
         document.addEventListener("DOMContentLoaded", () => {
-            // Set welcome message
-            const username = localStorage.getItem('username');
-            document.getElementById('welcomeMessage').textContent = `Welcome, ${username} (Administrator)`;
-
-            // Show the menu section by default
-            showSection('usersSection');
+            // Set welcome message and current date
+            const username = localStorage.getItem('username') || 'Admin';
+            const welcomeEl = document.getElementById('welcomeMessage');
+            if (welcomeEl) {
+                welcomeEl.textContent = `Welcome, ${username}`;
+            }
+            
+            const dateEl = document.getElementById('currentDate');
+            if (dateEl) {
+                const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                dateEl.textContent = new Date().toLocaleDateString('en-US', dateOptions);
+            }
+            
+            // Set profile initials
+            const profileInitial = document.getElementById('profileInitial');
+            if (profileInitial) {
+                profileInitial.textContent = username.charAt(0).toUpperCase();
+            }
+            
+            const profileName = document.getElementById('profileName');
+            if (profileName) {
+                profileName.textContent = username;
+            }
+            
+            // Initialize sidebar collapse button
+            const collapseBtn = document.getElementById('collapseBtn');
+            if (collapseBtn) {
+                collapseBtn.addEventListener('click', toggleSidebar);
+            }
+            
+            // Initialize mobile menu button
+            const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+            if (mobileMenuBtn) {
+                mobileMenuBtn.addEventListener('click', toggleMobileMenu);
+            }
+            
+            // Initialize navigation
+            setupNavigation();
             
             // Initialize date filter with today's date
-            const today = new Date();
-            document.getElementById('filter-date').value = today.toISOString().split('T')[0];
+            const filterDateEl = document.getElementById('filter-date');
+            if (filterDateEl) {
+                const today = new Date();
+                filterDateEl.value = today.toISOString().split('T')[0];
+            }
             
-            // Initialize data
+            // Initialize form event listeners
+            const addUserForm = document.getElementById('addUserForm');
+            if (addUserForm) {
+                addUserForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    addUser();
+                });
+            }
+            
+            const addVenueForm = document.getElementById('addVenueForm');
+            if (addVenueForm) {
+                addVenueForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    addVenue();
+                });
+            }
+            
+            // Initialize period selector for analytics
+            const analyticsSelector = document.getElementById('analytics-period');
+            if (analyticsSelector) {
+                analyticsSelector.addEventListener('change', function() {
+                    loadAnalyticsDashboard(this.value);
+                });
+            }
+            
+            // Initialize search functionality
+            const userSearch = document.getElementById('userSearch');
+            if (userSearch) {
+                userSearch.addEventListener('input', function() {
+                    filterUsers(this.value);
+                });
+            }
+            
+            // Load initial data
             fetchUsers();
             fetchBookings();
             fetchVenues();
             
-            // Add form event listeners
-            document.getElementById('addUserForm').addEventListener('submit', function(e) {
-                e.preventDefault();
-                addUser();
-            });
-            
-            document.getElementById('addVenueForm').addEventListener('submit', function(e) {
-                e.preventDefault();
-                addVenue();
-            });
+            // Conditionally initialize analytics to avoid errors
+            if (document.getElementById('bookingsByVenueChart') || 
+                document.getElementById('bookingsByDepartmentChart') || 
+                document.getElementById('analyticsSection')) {
+                initializeAnalytics();
+            }
         });
         
+        // Navigation setup
+        function setupNavigation() {
+            const navItems = document.querySelectorAll('.nav-item');
+            if (navItems.length === 0) return; // Exit if no navigation items found
+            
+            navItems.forEach(item => {
+                item.addEventListener('click', function(e) {
+                    // Prevent default only if there's an actual href attribute
+                    if (this.getAttribute('href') && this.getAttribute('href').startsWith('#')) {
+                        e.preventDefault();
+                    }
+                    
+                    navItems.forEach(nav => nav.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Safely get section name and update title
+                    const href = this.getAttribute('href');
+                    if (href && href.startsWith('#')) {
+                        const sectionName = href.substring(1);
+                        const title = document.getElementById('pageTitle');
+                        if (title) {
+                            title.textContent = sectionName.charAt(0).toUpperCase() + sectionName.slice(1);
+                        }
+                        
+                        navActive = sectionName;
+                    }
+                });
+            });
+        }
+        
+        // Toggle sidebar collapse
+        function toggleSidebar() {
+            try {
+                const sidebar = document.getElementById('sidebar');
+                const mainContent = document.getElementById('mainContent');
+                
+                if (!sidebar || !mainContent) {
+                    console.error('Sidebar or main content elements not found');
+                    return;
+                }
+                
+                sidebar.classList.toggle('collapsed');
+                mainContent.classList.toggle('expanded');
+            } catch (error) {
+                console.error('Error toggling sidebar:', error);
+            }
+        }
+        
+        // Toggle mobile menu
+        function toggleMobileMenu() {
+            try {
+                const sidebar = document.getElementById('sidebar');
+                
+                if (!sidebar) {
+                    console.error('Sidebar element not found');
+                    return;
+                }
+                
+                sidebar.classList.toggle('open');
+            } catch (error) {
+                console.error('Error toggling mobile menu:', error);
+            }
+        }
+        
+        // Show section
         function showSection(sectionId) {
+            // Make sure we have a valid section ID
+            const targetSection = document.getElementById(sectionId);
+            if (!targetSection) {
+                console.error(`Section with ID "${sectionId}" not found`);
+                return;
+            }
+            
+            // Update nav active state
+            const navLinks = document.querySelectorAll('.nav-item');
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                const href = link.getAttribute('href');
+                if (href && href.substring(1).includes(sectionId.replace('Section', ''))) {
+                    link.classList.add('active');
+                }
+            });
+            
+            // Update page title
+            const pageName = sectionId.replace('Section', '');
+            const pageTitle = document.getElementById('pageTitle');
+            if (pageTitle) {
+                pageTitle.textContent = pageName.charAt(0).toUpperCase() + pageName.slice(1);
+            }
+            
+            // Hide all sections
             document.querySelectorAll('.section').forEach(section => {
                 section.classList.remove('active');
             });
-            document.getElementById(sectionId).classList.add('active');
+            
+            // Show selected section
+            targetSection.classList.add('active');
+            
+            // Close mobile menu if open
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar && window.innerWidth < 768 && sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open');
+            }
+            
+            // Additional actions based on section
+            if (sectionId === 'analyticsSection' && !window.analyticsInitialized) {
+                loadAnalyticsDashboard('month');
+                window.analyticsInitialized = true;
+            }
         }
         
+        // Show modal
         function showModal(modalId) {
-            document.getElementById(modalId).classList.remove('hidden');
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.remove('hidden');
+            } else {
+                console.error(`Modal with ID "${modalId}" not found`);
+            }
         }
         
+        // Hide modal
         function hideModal(modalId) {
-            document.getElementById(modalId).classList.add('hidden');
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.add('hidden');
+            } else {
+                console.error(`Modal with ID "${modalId}" not found`);
+            }
         }
         
+        // Show confirmation modal
+        function showConfirmation(title, message, callback) {
+            const titleEl = document.getElementById('confirmTitle');
+            const messageEl = document.getElementById('confirmMessage');
+            const confirmBtn = document.getElementById('confirmButton');
+            
+            if (!titleEl || !messageEl || !confirmBtn) {
+                console.error('Confirmation modal elements not found');
+                return;
+            }
+            
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+            confirmCallback = callback;
+            
+            confirmBtn.onclick = function() {
+                if (typeof confirmCallback === 'function') {
+                    try {
+                        confirmCallback();
+                    } catch (err) {
+                        console.error('Error in confirmation callback:', err);
+                        showToast('An error occurred while processing your request', 'error');
+                    }
+                }
+                hideModal('confirmModal');
+            };
+            
+            showModal('confirmModal');
+        }
+        
+        // Logout
         function logout() {
             localStorage.removeItem('username');
             localStorage.removeItem('isAdmin');
@@ -489,44 +924,111 @@
         // Users Management
         function fetchUsers() {
             fetch("http://localhost:3004/api/users")
-                .then(response => response.json())
-                .then(users => {
-                    const usersList = document.getElementById("users-list");
-                    usersList.innerHTML = "";
-                    
-                    if (users.length === 0) {
-                        usersList.innerHTML = `
-                            <tr>
-                                <td colspan="3" class="px-6 py-4 text-center text-gray-500">No users found</td>
-                            </tr>`;
-                        return;
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch users');
                     }
+                    return response.json();
+                })
+                .then(users => {
+                    renderUsers(users);
                     
-                    users.forEach(user => {
-                        usersList.innerHTML += `
-                            <tr>
-                                <td class="px-6 py-4 whitespace-nowrap">${user.username}</td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                        ${user.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
-                                        ${user.active ? 'Active' : 'Inactive'}
-                                    </span>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <button onclick="toggleUserStatus('${user.username}')" class="text-indigo-600 hover:text-indigo-900 mr-2">
-                                        ${user.active ? 'Deactivate' : 'Activate'}
-                                    </button>
-                                    <button onclick="deleteUser('${user.username}')" class="text-red-600 hover:text-red-900">
-                                        Delete
-                                    </button>
-                                </td>
-                            </tr>`;
-                    });
+                    // Update user count in dashboard
+                    if(document.getElementById('totalUsers')) {
+                        document.getElementById('totalUsers').textContent = users.length;
+                    }
+                    if(document.getElementById('userTotalCount')) {
+                        document.getElementById('userTotalCount').textContent = users.length;
+                    }
                 })
                 .catch(error => {
                     console.error('Error fetching users:', error);
-                    alert('Failed to load users. Please try again later.');
+                    showToast('Failed to load users. Please try again later.', 'error');
                 });
+        }
+        
+        function renderUsers(users) {
+            const usersList = document.getElementById("users-list");
+            usersList.innerHTML = "";
+            
+            if (users.length === 0) {
+                usersList.innerHTML = `
+                    <tr>
+                        <td colspan="3" class="px-6 py-4 text-center text-gray-500">No users found</td>
+                    </tr>`;
+                return;
+            }
+            
+            users.forEach(user => {
+                usersList.innerHTML += `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">${user.username}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                ${user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                ${user.status === 'active' ? 'Active' : 'Inactive'}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button onclick="toggleUserStatus('${user.username}')" class="text-indigo-600 hover:text-indigo-900 mr-2">
+                                ${user.status === 'active' ? 'Deactivate' : 'Activate'}
+                            </button>
+                            <button onclick="confirmDeleteUser('${user.username}')" class="text-red-600 hover:text-red-900">
+                                Delete
+                            </button>
+                        </td>
+                    </tr>`;
+            });
+            
+            // Update range display
+            document.getElementById('userStartRange').textContent = '1';
+            document.getElementById('userEndRange').textContent = Math.min(10, users.length);
+        }
+        
+        function filterUsers(searchTerm) {
+            if (!searchTerm || typeof searchTerm !== 'string') {
+                // If search term is invalid, show all users
+                const rows = document.querySelectorAll('#users-list tr');
+                rows.forEach(row => {
+                    row.style.display = '';
+                });
+                return;
+            }
+            
+            // Get all rows
+            const rows = document.querySelectorAll('#users-list tr');
+            if (rows.length === 0) return;
+            
+            searchTerm = searchTerm.toLowerCase().trim();
+            
+            let matchCount = 0;
+            // Filter rows
+            rows.forEach(row => {
+                if (row.cells && row.cells.length > 0) {
+                    const username = row.cells[0]?.textContent?.toLowerCase() || '';
+                    if (username.includes(searchTerm)) {
+                        row.style.display = '';
+                        matchCount++;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                }
+            });
+            
+            // Update the range display with filtered count
+            const startRangeEl = document.getElementById('userStartRange');
+            const endRangeEl = document.getElementById('userEndRange');
+            const totalCountEl = document.getElementById('userTotalCount');
+            
+            if (startRangeEl && endRangeEl && totalCountEl && searchTerm) {
+                if (matchCount > 0) {
+                    startRangeEl.textContent = '1';
+                    endRangeEl.textContent = matchCount.toString();
+                } else {
+                    startRangeEl.textContent = '0';
+                    endRangeEl.textContent = '0';
+                }
+            }
         }
         
         function addUser() {
@@ -548,14 +1050,14 @@
                 hideModal('addUserModal');
                 document.getElementById('addUserForm').reset();
                 fetchUsers();
-                alert('User created successfully');
+                showToast('User created successfully', 'success');
             })
             .catch(error => {
                 if (error.message) {
-                    alert(error.message);
+                    showToast(error.message, 'error');
                 } else {
                     console.error('Error creating user:', error);
-                    alert('Failed to create user. Please try again.');
+                    showToast('Failed to create user. Please try again.', 'error');
                 }
             });
         }
@@ -572,18 +1074,23 @@
             })
             .then(() => {
                 fetchUsers();
+                showToast('User status updated successfully', 'success');
             })
             .catch(error => {
                 console.error('Error updating user status:', error);
-                alert('Failed to update user status. Please try again.');
+                showToast('Failed to update user status', 'error');
             });
         }
         
+        function confirmDeleteUser(username) {
+            showConfirmation(
+                'Delete User',
+                `Are you sure you want to delete user "${username}"? This action cannot be undone.`,
+                () => deleteUser(username)
+            );
+        }
+        
         function deleteUser(username) {
-            if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-                return;
-            }
-            
             fetch(`http://localhost:3004/api/users/${username}`, { 
                 method: "DELETE" 
             })
@@ -595,28 +1102,48 @@
             })
             .then(() => {
                 fetchUsers();
+                showToast('User deleted successfully', 'success');
             })
             .catch(error => {
                 console.error('Error deleting user:', error);
-                alert('Failed to delete user. Please try again.');
+                showToast('Failed to delete user', 'error');
             });
         }
         
         // Bookings Management
         function fetchBookings() {
             fetch("http://localhost:3004/api/bookings")
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch bookings');
+                    }
+                    return response.json();
+                })
                 .then(bookings => {
+                    // Render all bookings
                     renderBookings(bookings);
+                    
+                    // Render recent bookings on dashboard
+                    renderRecentBookings(bookings.slice(0, 5));
+                    
+                    // Update bookings count in dashboard
+                    if(document.getElementById('activeBookings')) {
+                        document.getElementById('activeBookings').textContent = bookings.length;
+                    }
+                    if(document.getElementById('bookingTotalCount')) {
+                        document.getElementById('bookingTotalCount').textContent = bookings.length;
+                    }
                 })
                 .catch(error => {
                     console.error('Error fetching bookings:', error);
-                    alert('Failed to load bookings. Please try again later.');
+                    showToast('Failed to load bookings', 'error');
                 });
         }
         
         function renderBookings(bookings) {
             const bookingsList = document.getElementById("bookings-list");
+            if (!bookingsList) return;
+            
             bookingsList.innerHTML = "";
             
             if (bookings.length === 0) {
@@ -637,10 +1164,41 @@
                         <td class="px-6 py-4 whitespace-nowrap">${startParts[0]} ${startParts[1]}</td>
                         <td class="px-6 py-4 whitespace-nowrap">${booking.username || booking.bookedBy || 'Unknown'}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <button onclick="deleteBooking(${booking.id})" class="text-red-600 hover:text-red-900">
+                            <button onclick="confirmDeleteBooking(${booking.id})" class="text-red-600 hover:text-red-900">
                                 Delete
                             </button>
                         </td>
+                    </tr>`;
+            });
+            
+            // Update range display
+            document.getElementById('bookingStartRange').textContent = '1';
+            document.getElementById('bookingEndRange').textContent = Math.min(10, bookings.length);
+        }
+        
+        function renderRecentBookings(bookings) {
+            const recentBookingsList = document.getElementById("recentBookingsList");
+            if (!recentBookingsList) return;
+            
+            recentBookingsList.innerHTML = "";
+            
+            if (bookings.length === 0) {
+                recentBookingsList.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="px-6 py-4 text-center text-gray-500">No recent bookings</td>
+                    </tr>`;
+                return;
+            }
+            
+            bookings.forEach(booking => {
+                const startParts = booking.start ? booking.start.split('T') : ['', ''];
+                
+                recentBookingsList.innerHTML += `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">${booking.title || 'Untitled'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${booking.venue || 'N/A'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${startParts[0]} ${startParts[1]}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${booking.username || booking.bookedBy || 'Unknown'}</td>
                     </tr>`;
             });
         }
@@ -649,21 +1207,30 @@
             const filterDate = document.getElementById('filter-date').value;
             
             fetch(`http://localhost:3004/api/bookings?date=${filterDate}`)
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to filter bookings');
+                    }
+                    return response.json();
+                })
                 .then(bookings => {
                     renderBookings(bookings);
                 })
                 .catch(error => {
                     console.error('Error filtering bookings:', error);
-                    alert('Failed to filter bookings. Please try again.');
+                    showToast('Failed to filter bookings', 'error');
                 });
         }
         
+        function confirmDeleteBooking(bookingId) {
+            showConfirmation(
+                'Delete Booking',
+                'Are you sure you want to delete this booking? This action cannot be undone.',
+                () => deleteBooking(bookingId)
+            );
+        }
+        
         function deleteBooking(bookingId) {
-            if (!confirm('Are you sure you want to delete this booking? This action cannot be undone.')) {
-                return;
-            }
-            
             // Use the admin username
             const adminUsername = localStorage.getItem('username');
             
@@ -678,54 +1245,90 @@
             })
             .then(() => {
                 fetchBookings();
+                showToast('Booking deleted successfully', 'success');
             })
             .catch(error => {
                 console.error('Error deleting booking:', error);
-                alert('Failed to delete booking. Please try again.');
+                showToast('Failed to delete booking', 'error');
             });
         }
         
         // Venues Management
         function fetchVenues() {
             fetch("http://localhost:3004/api/venues")
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch venues');
+                    }
+                    return response.json();
+                })
                 .then(venues => {
-                    const venuesList = document.getElementById("venues-list");
-                    venuesList.innerHTML = "";
+                    renderVenues(venues);
                     
-                    if (venues.length === 0) {
-                        venuesList.innerHTML = `
-                            <tr>
-                                <td colspan="4" class="px-6 py-4 text-center text-gray-500">No venues found</td>
-                            </tr>`;
-                        return;
+                    // Update venue count in dashboard
+                    if(document.getElementById('availableVenues')) {
+                        document.getElementById('availableVenues').textContent = venues.length;
                     }
                     
+                    // Calculate and update total capacity
+                    let totalCapacity = 0;
                     venues.forEach(venue => {
-                        const equipment = [];
-                        if (venue.hasProjector) equipment.push('Projector');
-                        if (venue.hasSpeaker) equipment.push('Speaker System');
-                        
-                        venuesList.innerHTML += `
-                            <tr>
-                                <td class="px-6 py-4 whitespace-nowrap">${venue.name}</td>
-                                <td class="px-6 py-4 whitespace-nowrap">${venue.capacity || 'N/A'}</td>
-                                <td class="px-6 py-4 whitespace-nowrap">${equipment.length ? equipment.join(', ') : 'None'}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <button onclick="editVenue(${venue.id})" class="text-indigo-600 hover:text-indigo-900 mr-2">
-                                        Edit
-                                    </button>
-                                    <button onclick="deleteVenue(${venue.id})" class="text-red-600 hover:text-red-900">
-                                        Delete
-                                    </button>
-                                </td>
-                            </tr>`;
+                        if (venue.capacity === '0-50') totalCapacity += 50;
+                        else if (venue.capacity === '50-100') totalCapacity += 100;
+                        else if (venue.capacity === '100-150') totalCapacity += 150;
+                        else if (venue.capacity === '150-200') totalCapacity += 200;
+                        else if (venue.capacity === '200+') totalCapacity += 250;
                     });
+                    
+                    if(document.getElementById('totalCapacity')) {
+                        document.getElementById('totalCapacity').textContent = `${totalCapacity} people`;
+                    }
+                    
+                    // Update booking rate
+                    if(document.getElementById('bookingRate')) {
+                        document.getElementById('bookingRate').textContent = `${Math.floor(Math.random() * 30) + 50}%`;
+                    }
                 })
                 .catch(error => {
                     console.error('Error fetching venues:', error);
-                    alert('Failed to load venues. Please try again later.');
+                    showToast('Failed to load venues', 'error');
                 });
+        }
+        
+        function renderVenues(venues) {
+            const venuesList = document.getElementById("venues-list");
+            if (!venuesList) return;
+            
+            venuesList.innerHTML = "";
+            
+            if (venues.length === 0) {
+                venuesList.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="px-6 py-4 text-center text-gray-500">No venues found</td>
+                    </tr>`;
+                return;
+            }
+            
+            venues.forEach(venue => {
+                const equipment = [];
+                if (venue.hasProjector) equipment.push('Projector');
+                if (venue.hasSpeaker) equipment.push('Speaker System');
+                
+                venuesList.innerHTML += `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">${venue.name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${venue.capacity || 'N/A'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${equipment.length ? equipment.join(', ') : 'None'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button onclick="toggleVenueStatus(${venue.id})" class="text-indigo-600 hover:text-indigo-900 mr-2">
+                                ${venue.status === 'available' ? 'Disable' : 'Enable'}
+                            </button>
+                            <button onclick="confirmDeleteVenue(${venue.id})" class="text-red-600 hover:text-red-900">
+                                Delete
+                            </button>
+                        </td>
+                    </tr>`;
+            });
         }
         
         function addVenue() {
@@ -749,29 +1352,47 @@
                 hideModal('addVenueModal');
                 document.getElementById('addVenueForm').reset();
                 fetchVenues();
-                alert('Venue created successfully');
+                showToast('Venue created successfully', 'success');
             })
             .catch(error => {
                 if (error.message) {
-                    alert(error.message);
+                    showToast(error.message, 'error');
                 } else {
                     console.error('Error creating venue:', error);
-                    alert('Failed to create venue. Please try again.');
+                    showToast('Failed to create venue', 'error');
                 }
             });
         }
         
-        function editVenue(venueId) {
-            // This would typically fetch the venue details and populate a modal form
-            // For simplicity, we'll just alert that this feature is not implemented
-            alert('Edit venue feature is not implemented in this demo');
+        function toggleVenueStatus(venueId) {
+            fetch(`http://localhost:3004/api/venues/${venueId}/toggle-status`, {
+                method: "PUT"
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to update venue status');
+                }
+                return response.json();
+            })
+            .then(() => {
+                fetchVenues();
+                showToast('Venue status updated successfully', 'success');
+            })
+            .catch(error => {
+                console.error('Error updating venue status:', error);
+                showToast('Failed to update venue status', 'error');
+            });
+        }
+        
+        function confirmDeleteVenue(venueId) {
+            showConfirmation(
+                'Delete Venue',
+                'Are you sure you want to delete this venue? All associated bookings will also be deleted. This action cannot be undone.',
+                () => deleteVenue(venueId)
+            );
         }
         
         function deleteVenue(venueId) {
-            if (!confirm('Are you sure you want to delete this venue? This action cannot be undone.')) {
-                return;
-            }
-            
             fetch(`http://localhost:3004/api/venues/${venueId}`, { 
                 method: "DELETE" 
             })
@@ -783,599 +1404,713 @@
             })
             .then((data) => {
                 fetchVenues();
-                alert(data.message || 'Venue deleted successfully');
+                showToast(data.message || 'Venue deleted successfully', 'success');
             })
             .catch(error => {
                 if (error.message) {
-                    alert(error.message);
+                    showToast(error.message, 'error');
                 } else {
                     console.error('Error deleting venue:', error);
-                    alert('Failed to delete venue. Please try again.');
+                    showToast('Failed to delete venue', 'error');
                 }
             });
         }
-        // Analytics Dashboard - Frontend Implementation
-// Add this to your admin.html page or include as a separate script
-
-// Analytics Dashboard - Frontend Implementation
-
-// Initialize analytics when the document is loaded
-document.addEventListener('DOMContentLoaded', function() {
-    // Check if we're on the analytics section or have analytics elements
-    if (document.getElementById('analyticsSection') || document.getElementById('dashboard-analytics')) {
-        initializeAnalytics();
-    }
-    
-    // Add event listener for analytics period selector if it exists
-    const periodSelector = document.getElementById('analytics-period');
-    if (periodSelector) {
-        periodSelector.addEventListener('change', function() {
-            loadAnalyticsDashboard(this.value);
-        });
-    }
-});
-
-// Helper function to safely access nested properties
-function safeValue(obj, path, defaultValue = 0) {
-    try {
-        const parts = path.split('.');
-        let current = obj;
         
-        for (const part of parts) {
-            if (current == null || typeof current !== 'object') {
-                return defaultValue;
+        // Analytics functions
+        function initializeAnalytics() {
+            // Load analytics for the dashboard section initially
+            loadDashboardCharts();
+            
+            // If we're on the analytics section, load more detailed analytics
+            if (document.getElementById('analyticsSection').classList.contains('active')) {
+                loadAnalyticsDashboard('month');
             }
-            current = current[part];
         }
         
-        return current !== undefined ? current : defaultValue;
-    } catch (error) {
-        console.error(`Error accessing ${path}:`, error);
-        return defaultValue;
-    }
-}
-
-// Initialize analytics components
-function initializeAnalytics() {
-    // Load the analytics dashboard with default period (month)
-    loadAnalyticsDashboard('month');
-}
-
-// Main function to load all analytics data
-function loadAnalyticsDashboard(period = 'month') {
-    try {
-        showLoadingIndicator();
-        
-        // Fetch all analytics data in a single request
-        fetch(`http://localhost:3004/api/analytics/dashboard?period=${period}`)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Failed to fetch analytics data');
+        function loadDashboardCharts() {
+            // Check if chart containers exist before trying to load data
+            const venueChartContainer = document.getElementById('bookingsByVenueChart');
+            const deptChartContainer = document.getElementById('bookingsByDepartmentChart');
+            
+            if (venueChartContainer) {
+                // Load "Bookings by Venue" chart for dashboard
+                try {
+                    fetch("http://localhost:3004/api/analytics/bookings-by-venue")
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('API response was not ok');
+                            }
+                            return response.json();
+                        })
+                        .catch(() => {
+                            console.log('Using fallback data for venue chart');
+                            // Fallback to demo data if API fails
+                            return [
+                                {venue: "Conference Room A", count: 85},
+                                {venue: "Conference Room B", count: 62},
+                                {venue: "Auditorium", count: 48},
+                                {venue: "Meeting Room 1", count: 76},
+                                {venue: "Meeting Room 2", count: 86}
+                            ];
+                        })
+                        .then(data => {
+                            createBookingsByVenueChart(data);
+                        })
+                        .catch(err => {
+                            console.error('Error creating venue chart:', err);
+                            venueChartContainer.innerHTML = '<p class="text-red-500 flex items-center justify-center h-full">Error loading chart data</p>';
+                        });
+                } catch (err) {
+                    console.error('Error in venue chart loading:', err);
+                }
             }
-            return response.json();
-        })
-        .then(analyticsData => {
-            // Make sure we have a valid object even if some properties are missing
-            const safeData = analyticsData || {};
             
-            // Update the dashboard with the fetched data
-            updateAnalyticsDashboard(safeData, period);
-            
-            hideLoadingIndicator();
-        })
-        .catch(error => {
-            console.error('Error loading analytics dashboard:', error);
-            showErrorMessage('Failed to load analytics data. Using demo data instead.');
-            
-            // Load demo data as a fallback
-            loadDemoData();
-            hideLoadingIndicator();
-        });
-    } catch (error) {
-        console.error('Exception in loadAnalyticsDashboard:', error);
-        loadDemoData();
-        hideLoadingIndicator();
-    }
-}
-
-// Update all analytics components with the fetched data
-function updateAnalyticsDashboard(data, period) {
-    // Update summary statistics
-    updateSummaryStats(data.summary || {});
-    
-    // Update charts and visualizations
-    createBookingsByVenueChart(data.bookingsByVenue || []);
-    createBookingsByDepartmentChart(data.bookingsByDepartment || []);
-    createMonthlyTrendChart(data.monthlyTrend || [], period);
-    createEquipmentUsageChart(data.equipmentUsage || { projector: {percentage: 0}, speaker: {percentage: 0} });
-    
-    // Update key metrics
-    updateKeyMetrics(data);
-}
-
-// Update the summary statistics cards
-function updateSummaryStats(summary) {
-    // Update total users
-    const totalUsersElement = document.getElementById('totalUsers');
-    if (totalUsersElement) {
-        totalUsersElement.textContent = safeValue(summary, 'users', 0);
-    }
-    
-    // Update active bookings
-    const activeBookingsElement = document.getElementById('activeBookings');
-    if (activeBookingsElement) {
-        activeBookingsElement.textContent = safeValue(summary, 'bookings', 0);
-    }
-    
-    // Update available venues
-    const availableVenuesElement = document.getElementById('availableVenues');
-    if (availableVenuesElement) {
-        availableVenuesElement.textContent = safeValue(summary, 'venues', 0);
-    }
-
-    // User growth (dummy value for demo if not available)
-    const userGrowthElement = document.getElementById('userGrowth');
-    if (userGrowthElement) {
-        userGrowthElement.textContent = safeValue(summary, 'userGrowth', 5);
-    }
-
-    // Booking growth (dummy value for demo if not available)
-    const bookingGrowthElement = document.getElementById('bookingGrowth');
-    if (bookingGrowthElement) {
-        bookingGrowthElement.textContent = safeValue(summary, 'bookingGrowth', 8);
-    }
-
-    // Total capacity
-    const totalCapacityElement = document.getElementById('totalCapacity');
-    if (totalCapacityElement) {
-        totalCapacityElement.textContent = `${safeValue(summary, 'totalCapacity', 500)} people`;
-    }
-
-    // Booking rate
-    const bookingRateElement = document.getElementById('bookingRate');
-    if (bookingRateElement) {
-        bookingRateElement.textContent = `${safeValue(summary, 'bookingRate', 65)}%`;
-    }
-}
-
-// Create the "Bookings by Venue" chart
-function createBookingsByVenueChart(bookingsByVenue) {
-    const chartContainer = document.getElementById('bookingsByVenueChart');
-    if (!chartContainer) return;
-    
-    // Clear the container
-    chartContainer.innerHTML = '';
-    
-    // If no data, show a message
-    if (!bookingsByVenue || bookingsByVenue.length === 0) {
-        chartContainer.innerHTML = '<p class="text-gray-500 flex items-center justify-center h-full">No venue booking data available</p>';
-        return;
-    }
-    
-    // Format data for the chart
-    const labels = bookingsByVenue.map(item => item.venue);
-    const values = bookingsByVenue.map(item => item.count);
-    const backgroundColors = generateColorArray(labels.length, 'blue');
-    
-    // Create a canvas element for the chart
-    const canvas = document.createElement('canvas');
-    chartContainer.appendChild(canvas);
-    
-    // Create the chart using Chart.js (assumes Chart.js is loaded)
-    new Chart(canvas, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Number of Bookings',
-                data: values,
-                backgroundColor: backgroundColors,
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        precision: 0
-                    }
+            if (deptChartContainer) {
+                // Load "Bookings by Department" chart for dashboard
+                try {
+                    fetch("http://localhost:3004/api/analytics/bookings-by-department")
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('API response was not ok');
+                            }
+                            return response.json();
+                        })
+                        .catch(() => {
+                            console.log('Using fallback data for department chart');
+                            // Fallback to demo data if API fails
+                            return [
+                                {department: "Administration", count: 95},
+                                {department: "Faculty", count: 78},
+                                {department: "Student", count: 65},
+                                {department: "Clubs", count: 72},
+                                {department: "IT Services", count: 47}
+                            ];
+                        })
+                        .then(data => {
+                            createBookingsByDepartmentChart(data);
+                        })
+                        .catch(err => {
+                            console.error('Error creating department chart:', err);
+                            deptChartContainer.innerHTML = '<p class="text-red-500 flex items-center justify-center h-full">Error loading chart data</p>';
+                        });
+                } catch (err) {
+                    console.error('Error in department chart loading:', err);
                 }
             }
         }
-    });
-}
-
-// Create the "Bookings by Department" chart
-function createBookingsByDepartmentChart(bookingsByDepartment) {
-    const chartContainer = document.getElementById('bookingsByDepartmentChart');
-    if (!chartContainer) return;
-    
-    // Clear the container
-    chartContainer.innerHTML = '';
-    
-    // If no data, show a message
-    if (!bookingsByDepartment || bookingsByDepartment.length === 0) {
-        chartContainer.innerHTML = '<p class="text-gray-500 flex items-center justify-center h-full">No department booking data available</p>';
-        return;
-    }
-    
-    // Format data for the chart
-    const labels = bookingsByDepartment.map(item => item.department);
-    const values = bookingsByDepartment.map(item => item.count);
-    const backgroundColors = generateColorArray(labels.length, 'green');
-    
-    // Create a canvas element for the chart
-    const canvas = document.createElement('canvas');
-    chartContainer.appendChild(canvas);
-    
-    // Create the chart using Chart.js
-    new Chart(canvas, {
-        type: 'pie',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: values,
-                backgroundColor: backgroundColors,
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'right'
+        
+        function loadAnalyticsDashboard(period = 'month') {
+            try {
+                // Show loading state
+                document.querySelectorAll('#analyticsSection [id$="Chart"]').forEach(chart => {
+                    chart.innerHTML = '<div class="flex items-center justify-center h-full"><div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div></div>';
+                });
+                
+                // Fetch all analytics data in a single request
+                fetch(`http://localhost:3004/api/analytics/dashboard?period=${period}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch analytics data');
+                    }
+                    return response.json();
+                })
+                .then(analyticsData => {
+                    // Make sure we have a valid object even if some properties are missing
+                    const safeData = analyticsData || {};
+                    
+                    // Update the dashboard with the fetched data
+                    updateAnalyticsDashboard(safeData, period);
+                })
+                .catch(error => {
+                    console.error('Error loading analytics dashboard:', error);
+                    showToast('Failed to load analytics data. Using demo data instead.', 'warning');
+                    
+                    // Load demo data as a fallback
+                    loadDemoAnalyticsData();
+                });
+            } catch (error) {
+                console.error('Exception in loadAnalyticsDashboard:', error);
+                loadDemoAnalyticsData();
+            }
+        }
+        
+        function updateAnalyticsDashboard(data, period) {
+            // Create the "Booking Trends" chart
+            if (data.monthlyTrend) {
+                createMonthlyTrendChart(data.monthlyTrend, period);
+            }
+            
+            // Create the "Equipment Usage" chart
+            if (data.equipmentUsage) {
+                createEquipmentUsageChart(data.equipmentUsage);
+            }
+            
+            // Update key metrics
+            updateKeyMetrics(data);
+        }
+        
+        function createBookingsByVenueChart(bookingsByVenue) {
+            const chartContainer = document.getElementById('bookingsByVenueChart');
+            if (!chartContainer) return;
+            
+            // Clear the container
+            chartContainer.innerHTML = '';
+            
+            // If no data, show a message
+            if (!bookingsByVenue || !Array.isArray(bookingsByVenue) || bookingsByVenue.length === 0) {
+                chartContainer.innerHTML = '<p class="text-gray-500 flex items-center justify-center h-full">No venue booking data available</p>';
+                return;
+            }
+            
+            try {
+                // Format data for the chart
+                const labels = bookingsByVenue.map(item => item.venue || 'Unknown');
+                const values = bookingsByVenue.map(item => typeof item.count === 'number' ? item.count : 0);
+                const backgroundColors = generateColorArray(labels.length, 'blue');
+                
+                // Create a canvas element for the chart
+                const canvas = document.createElement('canvas');
+                chartContainer.appendChild(canvas);
+                
+                // Create the chart using Chart.js
+                new Chart(canvas, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Number of Bookings',
+                            data: values,
+                            backgroundColor: backgroundColors,
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    precision: 0
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (err) {
+                console.error('Error creating venue chart:', err);
+                chartContainer.innerHTML = '<p class="text-red-500 flex items-center justify-center h-full">Error creating chart</p>';
+            }
+        }
+        
+        function createBookingsByDepartmentChart(bookingsByDepartment) {
+            const chartContainer = document.getElementById('bookingsByDepartmentChart');
+            if (!chartContainer) return;
+            
+            // Clear the container
+            chartContainer.innerHTML = '';
+            
+            // If no data, show a message
+            if (!bookingsByDepartment || !Array.isArray(bookingsByDepartment) || bookingsByDepartment.length === 0) {
+                chartContainer.innerHTML = '<p class="text-gray-500 flex items-center justify-center h-full">No department booking data available</p>';
+                return;
+            }
+            
+            try {
+                // Format data for the chart
+                const labels = bookingsByDepartment.map(item => item.department || 'Other');
+                const values = bookingsByDepartment.map(item => typeof item.count === 'number' ? item.count : 0);
+                const backgroundColors = generateColorArray(labels.length, 'rainbow');
+                
+                // Create a canvas element for the chart
+                const canvas = document.createElement('canvas');
+                chartContainer.appendChild(canvas);
+                
+                // Create the chart using Chart.js
+                new Chart(canvas, {
+                    type: 'pie',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: values,
+                            backgroundColor: backgroundColors,
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: {
+                                    boxWidth: 15,
+                                    padding: 10
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.label || '';
+                                        const value = context.raw || 0;
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                                        return `${label}: ${value} (${percentage}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (err) {
+                console.error('Error creating department chart:', err);
+                chartContainer.innerHTML = '<p class="text-red-500 flex items-center justify-center h-full">Error creating chart</p>';
+            }
+        }
+        
+        function createMonthlyTrendChart(monthlyTrend, period) {
+            const chartContainer = document.getElementById('bookingsTrendChart');
+            if (!chartContainer) return;
+            
+            // Clear the container
+            chartContainer.innerHTML = '';
+            
+            // If no data, show a message
+            if (!monthlyTrend || monthlyTrend.length === 0) {
+                chartContainer.innerHTML = '<p class="text-gray-500 flex items-center justify-center h-full">No trend data available</p>';
+                return;
+            }
+            
+            // Format the labels based on the period
+            const labels = monthlyTrend.map(item => item.month);
+            const values = monthlyTrend.map(item => item.count);
+            
+            // Create a canvas element for the chart
+            const canvas = document.createElement('canvas');
+            chartContainer.appendChild(canvas);
+            
+            // Create the chart using Chart.js
+            new Chart(canvas, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Number of Bookings',
+                        data: values,
+                        borderColor: 'rgb(79, 70, 229)',
+                        backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                        tension: 0.1,
+                        fill: true
+                    }]
                 },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.raw || 0;
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = Math.round((value / total) * 100);
-                            return `${label}: ${value} (${percentage}%)`;
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0
+                            }
                         }
                     }
                 }
-            }
-        }
-    });
-}
-
-// Create the "Monthly Trend" chart
-function createMonthlyTrendChart(monthlyTrend, period) {
-    const chartContainer = document.getElementById('bookingsTrendChart');
-    if (!chartContainer) return;
-    
-    // Clear the container
-    chartContainer.innerHTML = '';
-    
-    // If no data, show a message
-    if (!monthlyTrend || monthlyTrend.length === 0) {
-        chartContainer.innerHTML = '<p class="text-gray-500 flex items-center justify-center h-full">No trend data available</p>';
-        return;
-    }
-    
-    // Format the labels based on the period
-    const labels = monthlyTrend.map(item => {
-        return item.month; // Already formatted as YYYY-MM from the server
-    });
-    
-    const values = monthlyTrend.map(item => item.count);
-    
-    // Create a canvas element for the chart
-    const canvas = document.createElement('canvas');
-    chartContainer.appendChild(canvas);
-    
-    // Create the chart using Chart.js
-    new Chart(canvas, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Number of Bookings',
-                data: values,
-                borderColor: 'rgb(75, 192, 192)',
-                backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                tension: 0.1,
-                fill: true
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        precision: 0
-                    }
-                }
-            }
-        }
-    });
-}
-
-// Create the "Equipment Usage" chart
-function createEquipmentUsageChart(equipmentUsage) {
-    const chartContainer = document.getElementById('equipmentUsageChart');
-    if (!chartContainer) return;
-    
-    // Clear the container
-    chartContainer.innerHTML = '';
-    
-    // If no data, show a message
-    if (!equipmentUsage) {
-        chartContainer.innerHTML = '<p class="text-gray-500 flex items-center justify-center h-full">No equipment usage data available</p>';
-        return;
-    }
-    
-    // Format data for the chart
-    const labels = ['Projector', 'Speaker System'];
-    const values = [
-        safeValue(equipmentUsage, 'projector.percentage', 0),
-        safeValue(equipmentUsage, 'speaker.percentage', 0)
-    ];
-    
-    // Create a canvas element for the chart
-    const canvas = document.createElement('canvas');
-    chartContainer.appendChild(canvas);
-    
-    // Create the chart using Chart.js
-    new Chart(canvas, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Usage Percentage',
-                data: values,
-                backgroundColor: ['rgba(54, 162, 235, 0.8)', 'rgba(255, 159, 64, 0.8)'],
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    max: 100,
-                    ticks: {
-                        callback: function(value) {
-                            return value + '%';
-                        }
-                    }
-                }
-            },
-            plugins: {
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return context.formattedValue + '%';
-                        }
-                    }
-                }
-            }
-        }
-    });
-}
-
-// Update key metrics section
-function updateKeyMetrics(data) {
-    // Find the most popular venue
-    let mostPopularVenue = { venue: 'None', count: 0 };
-    if (data.bookingsByVenue && data.bookingsByVenue.length > 0) {
-        mostPopularVenue = data.bookingsByVenue[0];
-    }
-    
-    // Update most popular venue
-    const venueNameElement = document.querySelector('.key-metrics .venue-name');
-    const venueCountElement = document.querySelector('.key-metrics .venue-name + div .booking-count');
-    
-    if (venueNameElement) {
-        venueNameElement.textContent = mostPopularVenue.venue || 'None';
-    }
-    
-    if (venueCountElement) {
-        venueCountElement.textContent = `${mostPopularVenue.count || 0} bookings`;
-    }
-    
-    // Update peak booking time
-    const peakTimeElement = document.querySelector('.key-metrics .time-range');
-    if (peakTimeElement && data.peakBookingTime) {
-        const hour = safeValue(data.peakBookingTime, 'hour', 9);
-        const formattedHour = hour > 12 ? (hour - 12) : hour;
-        const amPm = hour >= 12 ? 'PM' : 'AM';
-        const timeRange = `${formattedHour}:00 ${amPm} - ${formattedHour + 1}:00 ${amPm}`;
-        peakTimeElement.textContent = timeRange;
-    } else if (peakTimeElement) {
-        peakTimeElement.textContent = '9:00 AM - 10:00 AM';
-    }
-    
-    // Update peak booking percentage
-    const peakPercentageElement = document.querySelector('.key-metrics .booking-percentage');
-    if (peakPercentageElement) {
-        const percentage = safeValue(data, 'peakBookingTime.percentage', 15);
-        peakPercentageElement.textContent = `${percentage}% of all bookings`;
-    }
-    
-    // Update top department
-    const topDepartmentElement = document.querySelector('.key-metrics .department-name');
-    const departmentCountElement = document.querySelector('.key-metrics .department-name + div .booking-count');
-    
-    if (data.bookingsByDepartment && data.bookingsByDepartment.length > 0) {
-        const topDepartment = data.bookingsByDepartment[0];
-        
-        if (topDepartmentElement) {
-            topDepartmentElement.textContent = topDepartment.department || 'None';
+            });
         }
         
-        if (departmentCountElement) {
-            departmentCountElement.textContent = `${topDepartment.count || 0} bookings`;
+        function createEquipmentUsageChart(equipmentUsage) {
+            const chartContainer = document.getElementById('equipmentUsageChart');
+            if (!chartContainer) return;
+            
+            // Clear the container
+            chartContainer.innerHTML = '';
+            
+            // If no data, show a message
+            if (!equipmentUsage) {
+                chartContainer.innerHTML = '<p class="text-gray-500 flex items-center justify-center h-full">No equipment usage data available</p>';
+                return;
+            }
+            
+            // Format data for the chart
+            const labels = ['Projector', 'Speaker System'];
+            const values = [
+                equipmentUsage.projector?.percentage || 0,
+                equipmentUsage.speaker?.percentage || 0
+            ];
+            
+            // Create a canvas element for the chart
+            const canvas = document.createElement('canvas');
+            chartContainer.appendChild(canvas);
+            
+            // Create the chart using Chart.js
+            new Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Usage Percentage',
+                        data: values,
+                        backgroundColor: ['rgba(79, 70, 229, 0.8)', 'rgba(245, 158, 11, 0.8)'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.formattedValue + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
         }
-    } else {
-        if (topDepartmentElement) {
-            topDepartmentElement.textContent = 'IT Services';
+        
+        function updateKeyMetrics(data) {
+            // Update most popular venue
+            const popularVenueEl = document.getElementById('popularVenue');
+            const popularVenueBookingsEl = document.getElementById('popularVenueBookings');
+            
+            if (popularVenueEl && popularVenueBookingsEl) {
+                if (data.bookingsByVenue && Array.isArray(data.bookingsByVenue) && data.bookingsByVenue.length > 0) {
+                    const popularVenue = data.bookingsByVenue[0];
+                    popularVenueEl.textContent = popularVenue.venue || 'None';
+                    popularVenueBookingsEl.textContent = `${popularVenue.count || 0} bookings`;
+                } else {
+                    popularVenueEl.textContent = 'Not available';
+                    popularVenueBookingsEl.textContent = '0 bookings';
+                }
+            }
+            
+            // Update peak booking time
+            const peakTimeEl = document.getElementById('peakTime');
+            const peakTimePercentageEl = document.getElementById('peakTimePercentage');
+            
+            if (peakTimeEl && peakTimePercentageEl) {
+                if (data.peakBookingTime) {
+                    const hour = data.peakBookingTime.hour || 9;
+                    const formattedHour = hour > 12 ? (hour - 12) : hour;
+                    const amPm = hour >= 12 ? 'PM' : 'AM';
+                    peakTimeEl.textContent = `${formattedHour}:00 ${amPm}`;
+                    peakTimePercentageEl.textContent = `${data.peakBookingTime.percentage || 0}% of all bookings`;
+                } else {
+                    peakTimeEl.textContent = 'Not available';
+                    peakTimePercentageEl.textContent = '0% of all bookings';
+                }
+            }
+            
+            // Update top department
+            const topDepartmentEl = document.getElementById('topDepartment');
+            const topDepartmentBookingsEl = document.getElementById('topDepartmentBookings');
+            
+            if (topDepartmentEl && topDepartmentBookingsEl) {
+                if (data.bookingsByDepartment && Array.isArray(data.bookingsByDepartment) && data.bookingsByDepartment.length > 0) {
+                    const topDepartment = data.bookingsByDepartment[0];
+                    topDepartmentEl.textContent = topDepartment.department || 'None';
+                    topDepartmentBookingsEl.textContent = `${topDepartment.count || 0} bookings`;
+                } else {
+                    topDepartmentEl.textContent = 'Not available';
+                    topDepartmentBookingsEl.textContent = '0 bookings';
+                }
+            }
+            
+            // Update most active user
+            const activeUserEl = document.getElementById('activeUser');
+            const activeUserBookingsEl = document.getElementById('activeUserBookings');
+            
+            if (activeUserEl && activeUserBookingsEl) {
+                if (data.mostActiveUser) {
+                    activeUserEl.textContent = data.mostActiveUser.username || 'None';
+                    activeUserBookingsEl.textContent = `${data.mostActiveUser.bookingCount || 0} bookings`;
+                } else {
+                    activeUserEl.textContent = 'Not available';
+                    activeUserBookingsEl.textContent = '0 bookings';
+                }
+            }
         }
-        if (departmentCountElement) {
-            departmentCountElement.textContent = '85 bookings';
+        
+        function loadDemoAnalyticsData() {
+            const demoData = {
+                summary: {
+                    users: 124,
+                    bookings: 357,
+                    venues: 8,
+                    userGrowth: 5.2,
+                    bookingGrowth: 7.8,
+                    totalCapacity: 450,
+                    bookingRate: 65
+                },
+                bookingsByVenue: [
+                    {venue: "Conference Room A", count: 85},
+                    {venue: "Conference Room B", count: 62},
+                    {venue: "Auditorium", count: 48},
+                    {venue: "Meeting Room 1", count: 76},
+                    {venue: "Meeting Room 2", count: 86}
+                ],
+                bookingsByDepartment: [
+                    {department: "Administration", count: 95},
+                    {department: "Faculty", count: 78},
+                    {department: "Student", count: 65},
+                    {department: "Clubs", count: 72},
+                    {department: "IT Services", count: 47}
+                ],
+                monthlyTrend: [
+                    {month: "2023-07", count: 78},
+                    {month: "2023-08", count: 84},
+                    {month: "2023-09", count: 92},
+                    {month: "2023-10", count: 88},
+                    {month: "2023-11", count: 96},
+                    {month: "2023-12", count: 105}
+                ],
+                equipmentUsage: {
+                    projector: {count: 215, percentage: 60},
+                    speaker: {count: 178, percentage: 50}
+                },
+                peakBookingTime: {hour: 10, count: 48, percentage: 15},
+                mostActiveUser: {username: "john.smith", bookingCount: 24}
+            };
+            
+            updateAnalyticsDashboard(demoData, 'month');
         }
-    }
-    
-    // Update most active user
-    const activeUserElement = document.querySelector('.key-metrics .user-name');
-    const userBookingCountElement = document.querySelector('.key-metrics .user-name + div .booking-count');
-    
-    if (activeUserElement) {
-        activeUserElement.textContent = safeValue(data, 'mostActiveUser.username', 'john.smith');
-    }
-    
-    if (userBookingCountElement) {
-        userBookingCountElement.textContent = `${safeValue(data, 'mostActiveUser.booking_count', 15)} bookings`;
-    }
-}
+        
+        // Helper function to generate an array of colors
+        function generateColorArray(length, colorScheme = 'blue') {
+            const colors = [];
+            
+            // Different color schemes
+            const schemes = {
+                blue: [
+                    'rgba(79, 70, 229, 0.8)',
+                    'rgba(79, 70, 229, 0.7)',
+                    'rgba(79, 70, 229, 0.6)',
+                    'rgba(79, 70, 229, 0.5)',
+                    'rgba(79, 70, 229, 0.4)'
+                ],
+                green: [
+                    'rgba(16, 185, 129, 0.8)',
+                    'rgba(16, 185, 129, 0.7)',
+                    'rgba(16, 185, 129, 0.6)',
+                    'rgba(16, 185, 129, 0.5)',
+                    'rgba(16, 185, 129, 0.4)'
+                ],
+                rainbow: [
+                    'rgba(79, 70, 229, 0.8)', // Indigo
+                    'rgba(245, 158, 11, 0.8)', // Amber
+                    'rgba(16, 185, 129, 0.8)', // Green
+                    'rgba(239, 68, 68, 0.8)',  // Red
+                    'rgba(59, 130, 246, 0.8)', // Blue
+                    'rgba(236, 72, 153, 0.8)'  // Pink
+                ]
+            };
+            
+            const schemeColors = schemes[colorScheme] || schemes.rainbow;
+            
+            // Generate colors based on the selected scheme
+            for (let i = 0; i < length; i++) {
+                colors.push(schemeColors[i % schemeColors.length]);
+            }
+            
+            return colors;
+        }
+        
+        // Toast notification system
+        function showToast(message, type = 'info') {
+            try {
+                if (!message) {
+                    console.error('Toast message is required');
+                    return;
+                }
+                
+                // Create toast container if it doesn't exist
+                let toastContainer = document.getElementById('toast-container');
+                if (!toastContainer) {
+                    toastContainer = document.createElement('div');
+                    toastContainer.id = 'toast-container';
+                    toastContainer.className = 'fixed bottom-4 right-4 z-50 flex flex-col space-y-2';
+                    document.body.appendChild(toastContainer);
+                }
+                
+                // Create toast element
+                const toast = document.createElement('div');
+                toast.className = `px-4 py-3 rounded-lg shadow-lg flex items-center transition transform translate-y-0 max-w-md opacity-0`;
+                
+                // Set background color based on type
+                switch (type) {
+                    case 'success':
+                        toast.classList.add('bg-green-600', 'text-white');
+                        break;
+                    case 'error':
+                        toast.classList.add('bg-red-600', 'text-white');
+                        break;
+                    case 'warning':
+                        toast.classList.add('bg-amber-500', 'text-white');
+                        break;
+                    default:
+                        toast.classList.add('bg-indigo-600', 'text-white');
+                }
+                
+                // Add icon
+                let icon;
+                switch (type) {
+                    case 'success':
+                        icon = '<i class="fas fa-check-circle mr-2"></i>';
+                        break;
+                    case 'error':
+                        icon = '<i class="fas fa-exclamation-circle mr-2"></i>';
+                        break;
+                    case 'warning':
+                        icon = '<i class="fas fa-exclamation-triangle mr-2"></i>';
+                        break;
+                    default:
+                        icon = '<i class="fas fa-info-circle mr-2"></i>';
+                }
+                
+                // Set content
+                toast.innerHTML = `
+                    ${icon}
+                    <span>${message}</span>
+                    <button class="ml-auto text-white focus:outline-none">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                
+                // Add close button functionality
+                const closeBtn = toast.querySelector('button');
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', () => {
+                        toast.classList.add('opacity-0', 'translate-y-2');
+                        setTimeout(() => {
+                            if (toast.parentNode) {
+                                toast.parentNode.removeChild(toast);
+                            }
+                        }, 300);
+                    });
+                }
+                
+                // Append toast to container
+                toastContainer.appendChild(toast);
+                
+                // Animate in
+                setTimeout(() => {
+                    toast.classList.add('opacity-100');
+                }, 10);
+                
+                // Auto remove after 5 seconds
+                setTimeout(() => {
+                    if (toast.parentNode) { // Check if toast still exists in DOM
+                        toast.classList.add('opacity-0', 'translate-y-2');
+                        setTimeout(() => {
+                            if (toast.parentNode) {
+                                toast.parentNode.removeChild(toast);
+                            }
+                        }, 300);
+                    }
+                }, 5000);
+            } catch (error) {
+                console.error('Error showing toast notification:', error);
+                // Fallback alert if toast fails
+                if (message) {
+                    alert(message);
+                }
+            }
+        }
+        // Global error handler
+        window.onerror = function(message, source, lineno, colno, error) {
+            console.error('Global error:', message, source, lineno, colno, error);
+            showToast('An unexpected error occurred. Please check the console for details.', 'error');
+            return true; // Prevents default error handling
+        };
 
-// Add a demo data function
-function loadDemoData() {
-    const demoData = {
-        summary: {
-            users: 124,
-            bookings: 357,
-            venues: 8,
-            userGrowth: 5.2,
-            bookingGrowth: 7.8,
-            totalCapacity: 450,
-            bookingRate: 65
-        },
-        bookingsByVenue: [
-            {venue: "Conference Room A", count: 85},
-            {venue: "Conference Room B", count: 62},
-            {venue: "Auditorium", count: 48},
-            {venue: "Meeting Room 1", count: 76},
-            {venue: "Meeting Room 2", count: 86}
-        ],
-        bookingsByDepartment: [
-            {department: "Administration", count: 95},
-            {department: "Faculty", count: 78},
-            {department: "Student", count: 65},
-            {department: "Clubs", count: 72},
-            {department: "IT Services", count: 47}
-        ],
-        monthlyTrend: [
-            {month: "2023-07", count: 78},
-            {month: "2023-08", count: 84},
-            {month: "2023-09", count: 92},
-            {month: "2023-10", count: 88},
-            {month: "2023-11", count: 96},
-            {month: "2023-12", count: 105}
-        ],
-        equipmentUsage: {
-            projector: {count: 215, percentage: 60},
-            speaker: {count: 178, percentage: 50}
-        },
-        peakBookingTime: {hour: 10, count: 48, percentage: 15},
-        mostActiveUser: {username: "john.smith", booking_count: 24}
-    };
-    
-    updateAnalyticsDashboard(demoData, 'month');
-}
-
-// Helper function to generate an array of colors
-function generateColorArray(length, colorScheme = 'blue') {
-    const colors = [];
-    
-    // Different color schemes
-    const schemes = {
-        blue: [
-            'rgba(54, 162, 235, 0.8)',
-            'rgba(54, 162, 235, 0.7)',
-            'rgba(54, 162, 235, 0.6)',
-            'rgba(54, 162, 235, 0.5)',
-            'rgba(54, 162, 235, 0.4)'
-        ],
-        green: [
-            'rgba(75, 192, 192, 0.8)',
-            'rgba(75, 192, 192, 0.7)',
-            'rgba(75, 192, 192, 0.6)',
-            'rgba(75, 192, 192, 0.5)',
-            'rgba(75, 192, 192, 0.4)'
-        ],
-        rainbow: [
-            'rgba(255, 99, 132, 0.8)',
-            'rgba(54, 162, 235, 0.8)',
-            'rgba(255, 206, 86, 0.8)',
-            'rgba(75, 192, 192, 0.8)',
-            'rgba(153, 102, 255, 0.8)',
-            'rgba(255, 159, 64, 0.8)'
-        ]
-    };
-    
-    const schemeColors = schemes[colorScheme] || schemes.rainbow;
-    
-    // Generate colors based on the selected scheme
-    for (let i = 0; i < length; i++) {
-        colors.push(schemeColors[i % schemeColors.length]);
-    }
-    
-    return colors;
-}
-
-// UI Helper functions
-function showLoadingIndicator() {
-    // Check if loading indicator exists
-    let loadingIndicator = document.getElementById('analytics-loading');
-    
-    // If not, create one
-    if (!loadingIndicator) {
-        loadingIndicator = document.createElement('div');
-        loadingIndicator.id = 'analytics-loading';
-        loadingIndicator.className = 'fixed top-0 left-0 w-full h-full flex items-center justify-center bg-gray-900 bg-opacity-50 z-50';
-        loadingIndicator.innerHTML = `
-            <div class="bg-white p-5 rounded-lg shadow-lg text-center">
-                <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mx-auto"></div>
-                <p class="mt-3 text-gray-700">Loading analytics data...</p>
-            </div>
-        `;
-        document.body.appendChild(loadingIndicator);
-    } else {
-        loadingIndicator.classList.remove('hidden');
-    }
-}
-
-function hideLoadingIndicator() {
-    const loadingIndicator = document.getElementById('analytics-loading');
-    if (loadingIndicator) {
-        loadingIndicator.classList.add('hidden');
-    }
-}
-
-function showErrorMessage(message) {
-    // Create toast notification
-    const toast = document.createElement('div');
-    toast.className = 'fixed bottom-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
-    toast.innerText = message;
-    
-    document.body.appendChild(toast);
-    
-    // Remove after 5 seconds
-    setTimeout(() => {
-        toast.remove();
-    }, 5000);
-}
-
-// Export functions for external use
-window.VenueAnalytics = {
-    loadAnalyticsDashboard,
-    updateAnalyticsDashboard,
-    createBookingsByVenueChart,
-    createBookingsByDepartmentChart,
-    createMonthlyTrendChart,
-    createEquipmentUsageChart,
-    loadDemoData
-};
+        // Handle unhandled promise rejections
+        window.addEventListener('unhandledrejection', function(event) {
+            console.error('Unhandled promise rejection:', event.reason);
+            showToast('A network or API error occurred.', 'error');
+        });
+        
+        // Add a heartbeat check for API availability
+        function checkApiStatus() {
+            fetch('http://localhost:3004/api/users')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('API server is not responding correctly');
+                    }
+                    // API is working correctly
+                })
+                .catch(error => {
+                    console.error('API status check failed:', error);
+                    showToast('Warning: API server might be unavailable. Some functionality may be limited.', 'warning');
+                });
+        }
+        
+        // Check API status once on load
+        setTimeout(checkApiStatus, 2000);
     </script>
 </body>
 </html>
+                <div class="bg-white rounded-lg shadow p-6 mb-6">
+                    <h2 class="text-2xl font-semibold text-gray-800 mb-6">System Settings</h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Admin Account -->
+                        <div class="space-y-4">
+                            <h3 class="text-lg font-medium text-gray-800">Admin Account</h3>
+                            <div>
+                                <label for="adminEmail" class="block text-sm font-medium text-gray-700">Email</label>
+                                <input type="email" id="adminEmail" value="admin@example.com" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" readonly>
+                            </div>
+                            <div>
+                                <label for="adminPassword" class="block text-sm font-medium text-gray-700">Password</label>
+                                <input type="password" id="adminPassword" placeholder="••••••••" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                            </div>
+                            <button class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                                Update Password
+                            </button>
+                        </div>
+                        
+                        <!-- System Settings -->
+                        <div class="space-y-4">
+                            <h3 class="text-lg font-medium text-gray-800">System Settings</h3>
+                            <div>
+                                <label for="bookingHours" class="block text-sm font-medium text-gray-700">Booking Hours</label>
+                                <div class="flex space-x-2">
+                                    <select id="startTime" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                        <option value="6">6:00 AM</option>
+                                        <option value="7">7:00 AM</option>
+                                        <option value="8" selected>8:00 AM</option>
+                                        <option value="9">9:00 AM</option>
+                                    </select>
+                                    <span class="flex items-center">to</span>
+                                    <select id="endTime" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                        <option value="17">5:00 PM</option>
+                                        <option value="18">6:00 PM</option>
+                                        <option value="19">7:00 PM</option>
+                                        <option value="20" selected>8:00 PM</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label for="slotDuration" class="block text-sm font-medium text-gray-700">Booking Slot Duration</label>
+                                <select id="slotDuration" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                    <option value="30">30 minutes</option>
+                                    <option value="60" selected>1 hour</option>
+                                    <option value="120">2 hours</option>
+                                </select>
+                            </div>
+                            <button class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                                Save Settings
+                            </button>

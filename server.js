@@ -3,7 +3,6 @@ const mariadb = require('mariadb');
 const cors = require('cors');
 const path = require('path');
 const bcrypt = require('bcrypt');
-const fetch = require('node-fetch');
 
 const app = express();
 const port = 3004;
@@ -19,6 +18,34 @@ app.get('/', (req, res) => {
     
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Function to handle BigInt serialization in database results
+function processDatabaseResults(results) {
+    if (Array.isArray(results)) {
+        return results.map(row => {
+            const processedRow = {};
+            for (const key in row) {
+                if (typeof row[key] === 'bigint') {
+                    processedRow[key] = Number(row[key]);
+                } else {
+                    processedRow[key] = row[key];
+                }
+            }
+            return processedRow;
+        });
+    } else if (results && typeof results === 'object') {
+        const processedResults = {};
+        for (const key in results) {
+            if (typeof results[key] === 'bigint') {
+                processedResults[key] = Number(results[key]);
+            } else {
+                processedResults[key] = results[key];
+            }
+        }
+        return processedResults;
+    }
+    return results;
+}
+
 // MariaDB Connection Pool
 const pool = mariadb.createPool({
     host: 'localhost',
@@ -33,9 +60,7 @@ const createUsersTable = async (conn) => {
     await conn.query(`CREATE TABLE IF NOT EXISTS users (
         id INT AUTO_INCREMENT PRIMARY KEY,
         username VARCHAR(255) NOT NULL UNIQUE,
-        password VARCHAR(255) NOT NULL,
-        role ENUM('user', 'admin') NOT NULL DEFAULT 'user',
-        status ENUM('active', 'inactive') NOT NULL DEFAULT 'active'
+        password VARCHAR(255) NOT NULL
     )`);
 };
 
@@ -55,18 +80,6 @@ const createBookingsTable = async (conn) => {
     )`);
 };
 
-// Create Venues Table
-const createVenuesTable = async (conn) => {
-    await conn.query(`CREATE TABLE IF NOT EXISTS venues (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        name VARCHAR(255) NOT NULL UNIQUE,
-        capacity VARCHAR(50),
-        hasProjector BOOLEAN DEFAULT false,
-        hasSpeaker BOOLEAN DEFAULT false,
-        status ENUM('available', 'unavailable') NOT NULL DEFAULT 'available'
-    )`);
-};
-
 // Initialize Database Tables
 (async () => {
     let conn;
@@ -74,7 +87,6 @@ const createVenuesTable = async (conn) => {
         conn = await pool.getConnection();
         await createUsersTable(conn);
         await createBookingsTable(conn);
-        await createVenuesTable(conn);
         console.log("Database tables initialized successfully.");
     } catch (err) {
         console.error('Database setup error:', err);
@@ -130,22 +142,12 @@ app.post('/api/login', async (req, res) => {
             return res.status(401).json({ message: "Invalid username or password." });
         }
 
-        if (user[0].status === 'inactive') {
-            return res.status(401).json({ message: "Your account is inactive. Please contact an administrator." });
-        }
-
         const isPasswordValid = await bcrypt.compare(password, user[0].password);
         if (!isPasswordValid) {
             return res.status(401).json({ message: "Invalid username or password." });
         }
 
-        res.json({ 
-            message: "Login successful!", 
-            user: { 
-                username,
-                isAdmin: user[0].role === 'admin'
-            } 
-        });
+        res.json({ message: "Login successful!", user: { username } });
     } catch (err) {
         console.error('Login error:', err);
         res.status(500).json({ message: "Error logging in", error: err.message });
@@ -160,7 +162,7 @@ app.post('/api/bookings', async (req, res) => {
     const { title, venue, date, time, username, department, projectorRequired, speakerRequired } = req.body;
     
     if (!venue || !date || !time || !username) {
-        return res.status(400).json({ message: "Venue, date, time, and username are required" });
+        return res.status(400).json({ message: "Title, venue, date, time, and username are required" });
     }
 
     try {
@@ -181,16 +183,6 @@ app.post('/api/bookings', async (req, res) => {
         let conn;
         try {
             conn = await pool.getConnection();
-            
-            // Verify if venue exists and is available
-            const venueData = await conn.query("SELECT * FROM venues WHERE name = ?", [venue]);
-            if (venueData.length === 0) {
-                return res.status(400).json({ message: "Venue not found." });
-            }
-            
-            if (venueData[0].status === 'unavailable') {
-                return res.status(400).json({ message: "This venue is currently unavailable for booking." });
-            }
 
             const existing = await conn.query(
                 `SELECT * FROM bookings 
@@ -207,7 +199,7 @@ app.post('/api/bookings', async (req, res) => {
             // Include department, projector and speaker requirements in the query
             await conn.query(
                 "INSERT INTO bookings (title, venue, date, time, username, department, projectorRequired, speakerRequired) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
-                [title || "Untitled Booking", venue, date, time, username, department || null, projectorRequired || false, speakerRequired || false]
+                [title, venue, date, time, username, department || null, projectorRequired || false, speakerRequired || false]
             );
 
             res.json({ message: "Booking successful!" });
@@ -233,26 +225,16 @@ app.delete('/api/bookings/:id', async (req, res) => {
     try {
         conn = await pool.getConnection();
 
-        // Check if user is admin
-        const userResult = await conn.query("SELECT role FROM users WHERE username = ?", [username]);
-        const isAdmin = userResult.length > 0 && userResult[0].role === 'admin';
-        
-        // If admin, allow deletion of any booking, otherwise check ownership
-        let query = "SELECT * FROM bookings WHERE id = ?";
-        let params = [bookingId];
-        
-        if (!isAdmin) {
-            query += " AND username = ?";
-            params.push(username);
-        }
-        
-        const existing = await conn.query(query, params);
+        const existing = await conn.query(
+            "SELECT * FROM bookings WHERE id = ? AND username = ?", 
+            [bookingId, username]
+        );
         
         if (existing.length === 0) {
             return res.status(403).json({ message: "Booking not found or you don't have permission to delete it." });
         }
 
-        await conn.query("DELETE FROM bookings WHERE id = ?", [bookingId]);
+        await conn.query("DELETE FROM bookings WHERE id = ? AND username = ?", [bookingId, username]);
         res.json({ message: "Booking deleted successfully." });
     } catch (err) {
         console.error('Delete booking error:', err);
@@ -265,8 +247,6 @@ app.delete('/api/bookings/:id', async (req, res) => {
 // Get Bookings
 app.get('/api/bookings', async (req, res) => {
     const username = req.query.username;
-    const date = req.query.date;
-    
     let conn;
     try {
         conn = await pool.getConnection();
@@ -279,47 +259,31 @@ app.get('/api/bookings', async (req, res) => {
                 department,
                 DATE_FORMAT(date, '%Y-%m-%d') AS date, 
                 TIME_FORMAT(time, '%H:%i') AS time,
-                username,
-                projectorRequired,
-                speakerRequired
+                username
             FROM bookings
         `;
         
         let params = [];
-        const conditions = [];
-        
         if (username) {
-            conditions.push("username = ?");
+            query += " WHERE username = ?";
             params.push(username);
         }
         
-        if (date) {
-            conditions.push("date = ?");
-            params.push(date);
-        }
-        
-        if (conditions.length > 0) {
-            query += " WHERE " + conditions.join(" AND ");
-        }
-        
-        query += " ORDER BY date, time";
-        
         const results = await conn.query(query, params);
+        const processedResults = processDatabaseResults(results);
 
         // For debugging - log what's coming from the database
-        console.log("Database results:", results);
+        console.log("Database results:", processedResults);
 
-        const formattedBookings = results.map(b => ({
+        const formattedBookings = processedResults.map(b => ({
             id: b.id,
             title: b.title,
             venue: b.venue,
             department: b.department,
             start: `${b.date}T${b.time}`,
-            date: b.date,
             time: b.time,
             username: b.username,
-            projectorRequired: b.projectorRequired,
-            speakerRequired: b.speakerRequired
+            bookedBy: b.username
         }));
 
         // For debugging - log what's being sent to frontend
@@ -334,15 +298,114 @@ app.get('/api/bookings', async (req, res) => {
     }
 });
 
-// Get all users
-app.get('/api/users', async (req, res) => {
+// Get bookings by venue
+app.get('/api/bookings/by-venue', async (req, res) => {
     let conn;
     try {
         conn = await pool.getConnection();
-        const users = await conn.query(
-            "SELECT id, username, role, status FROM users"
-        );
-        res.json(users);
+        const query = `
+            SELECT venue, COUNT(*) as count
+            FROM bookings
+            GROUP BY venue
+            ORDER BY count DESC
+        `;
+        
+        const results = await conn.query(query);
+        const processedResults = processDatabaseResults(results);
+        
+        res.json(processedResults);
+    } catch (err) {
+        console.error('Bookings by venue error:', err);
+        res.status(500).json({ message: "Error fetching venue statistics", error: err.message });
+    } finally {
+        if (conn) conn.release();
+    }
+});
+
+// Get bookings by department
+app.get('/api/bookings/by-department', async (req, res) => {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const query = `
+            SELECT department, COUNT(*) as count
+            FROM bookings
+            WHERE department IS NOT NULL
+            GROUP BY department
+            ORDER BY count DESC
+        `;
+        
+        const results = await conn.query(query);
+        const processedResults = processDatabaseResults(results);
+        
+        res.json(processedResults);
+    } catch (err) {
+        console.error('Bookings by department error:', err);
+        res.status(500).json({ message: "Error fetching department statistics", error: err.message });
+    } finally {
+        if (conn) conn.release();
+    }
+});
+
+// Analytics endpoints for dashboard
+app.get('/api/analytics/bookings-by-venue', async (req, res) => {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const query = `
+            SELECT venue, COUNT(*) as count
+            FROM bookings
+            GROUP BY venue
+            ORDER BY count DESC
+            LIMIT 5
+        `;
+        
+        const results = await conn.query(query);
+        const processedResults = processDatabaseResults(results);
+        
+        res.json(processedResults);
+    } catch (err) {
+        console.error('Analytics bookings by venue error:', err);
+        res.status(500).json({ message: "Error fetching venue analytics", error: err.message });
+    } finally {
+        if (conn) conn.release();
+    }
+});
+
+app.get('/api/analytics/bookings-by-department', async (req, res) => {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const query = `
+            SELECT department, COUNT(*) as count
+            FROM bookings
+            WHERE department IS NOT NULL
+            GROUP BY department
+            ORDER BY count DESC
+            LIMIT 5
+        `;
+        
+        const results = await conn.query(query);
+        const processedResults = processDatabaseResults(results);
+        
+        res.json(processedResults);
+    } catch (err) {
+        console.error('Analytics bookings by department error:', err);
+        res.status(500).json({ message: "Error fetching department analytics", error: err.message });
+    } finally {
+        if (conn) conn.release();
+    }
+});
+
+// Get all users
+app.get('/api/users', async (req, res) => {
+    // Optional: Add admin validation check here
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const users = await conn.query("SELECT username, 'user' as role FROM users");
+        const processedUsers = processDatabaseResults(users);
+        res.json(processedUsers);
     } catch (err) {
         console.error('Get users error:', err);
         res.status(500).json({ message: "Error fetching users", error: err.message });
@@ -383,39 +446,31 @@ app.delete('/api/users/:username', async (req, res) => {
     }
 });
 
-// Toggle user status (active/inactive)
-app.put('/api/users/:username/toggle-status', async (req, res) => {
-    const username = req.params.username;
-    
-    // Don't allow changing status of admin account
-    if (username === "admin@example.com") {
-        return res.status(403).json({ message: "Cannot modify admin account status" });
-    }
-    
+// Create venues table if it doesn't exist
+const createVenuesTable = async (conn) => {
+    await conn.query(`CREATE TABLE IF NOT EXISTS venues (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL UNIQUE,
+        capacity VARCHAR(50),
+        hasProjector BOOLEAN DEFAULT false,
+        hasSpeaker BOOLEAN DEFAULT false,
+        status ENUM('available', 'unavailable') NOT NULL DEFAULT 'available'
+    )`);
+};
+
+// Initialize venues table
+(async () => {
     let conn;
     try {
         conn = await pool.getConnection();
-        
-        // First, get current status
-        const user = await conn.query("SELECT status FROM users WHERE username = ?", [username]);
-        
-        if (user.length === 0) {
-            return res.status(404).json({ message: "User not found" });
-        }
-        
-        // Toggle the status
-        const newStatus = user[0].status === 'active' ? 'inactive' : 'active';
-        
-        await conn.query("UPDATE users SET status = ? WHERE username = ?", [newStatus, username]);
-        
-        res.json({ message: "User status updated successfully", status: newStatus });
+        await createVenuesTable(conn);
+        console.log("Venues table initialized successfully.");
     } catch (err) {
-        console.error('Toggle user status error:', err);
-        res.status(500).json({ message: "Error updating user status", error: err.message });
+        console.error('Venues table setup error:', err);
     } finally {
         if (conn) conn.release();
     }
-});
+})();
 
 // Add or update a venue
 app.post('/api/venues', async (req, res) => {
@@ -429,8 +484,8 @@ app.post('/api/venues', async (req, res) => {
     try {
         conn = await pool.getConnection();
         await conn.query(
-            "INSERT INTO venues (name, capacity, hasProjector, hasSpeaker) VALUES (?, ?, ?, ?)", 
-            [name, capacity || '0-50', hasProjector || false, hasSpeaker || false]
+            "INSERT INTO venues (name, capacity, hasProjector, hasSpeaker, status) VALUES (?, ?, ?, ?, ?)", 
+            [name, capacity, hasProjector || false, hasSpeaker || false, 'available']
         );
         res.json({ message: "Venue added successfully" });
     } catch (err) {
@@ -447,7 +502,8 @@ app.get('/api/venues', async (req, res) => {
     try {
         conn = await pool.getConnection();
         const venues = await conn.query("SELECT * FROM venues");
-        res.json(venues);
+        const processedVenues = processDatabaseResults(venues);
+        res.json(processedVenues);
     } catch (err) {
         console.error('Get venues error:', err);
         res.status(500).json({ message: "Error fetching venues", error: err.message });
@@ -464,20 +520,20 @@ app.delete('/api/venues/:id', async (req, res) => {
     try {
         conn = await pool.getConnection();
         
-        // Get venue name first for bookings deletion
-        const venue = await conn.query("SELECT name FROM venues WHERE id = ?", [venueId]);
+        // Check if there are bookings using this venue
+        const bookings = await conn.query("SELECT COUNT(*) as count FROM bookings WHERE venue = (SELECT name FROM venues WHERE id = ?)", [venueId]);
+        const bookingCount = processDatabaseResults(bookings)[0].count;
         
-        if (venue.length === 0) {
-            return res.status(404).json({ message: "Venue not found" });
+        if (bookingCount > 0) {
+            return res.status(400).json({ message: "Cannot delete venue with active bookings" });
         }
         
-        const venueName = venue[0].name;
+        // Delete the venue
+        const result = await conn.query("DELETE FROM venues WHERE id = ?", [venueId]);
         
-        // First, delete all bookings associated with this venue
-        await conn.query("DELETE FROM bookings WHERE venue = ?", [venueName]);
-        
-        // Then delete the venue
-        await conn.query("DELETE FROM venues WHERE id = ?", [venueId]);
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "Venue not found" });
+        }
         
         res.json({ message: "Venue deleted successfully" });
     } catch (err) {
@@ -488,1072 +544,202 @@ app.delete('/api/venues/:id', async (req, res) => {
     }
 });
 
-// Toggle venue availability (available/unavailable)
-app.put('/api/venues/:id/toggle-status', async (req, res) => {
-    const venueId = req.params.id;
-    
+// Get booking statistics for dashboard
+app.get('/api/stats/bookings', async (req, res) => {
     let conn;
     try {
         conn = await pool.getConnection();
         
-        // First, get current status
-        const venue = await conn.query("SELECT status FROM venues WHERE id = ?", [venueId]);
+        // Total bookings
+        const totalBookingsQuery = await conn.query("SELECT COUNT(*) as count FROM bookings");
+        const totalBookings = processDatabaseResults(totalBookingsQuery)[0].count;
         
-        if (venue.length === 0) {
-            return res.status(404).json({ message: "Venue not found" });
-        }
-        
-        // Toggle the status
-        const newStatus = venue[0].status === 'available' ? 'unavailable' : 'available';
-        
-        await conn.query("UPDATE venues SET status = ? WHERE id = ?", [newStatus, venueId]);
-        
-        res.json({ message: "Venue status updated successfully", status: newStatus });
-    } catch (err) {
-        console.error('Toggle venue status error:', err);
-        res.status(500).json({ message: "Error updating venue status", error: err.message });
-    } finally {
-        if (conn) conn.release();
-    }
-});
-
-// Get venue utilization stats
-app.get('/api/analytics/utilization', async (req, res) => {
-    const daysBack = req.query.days || 30; // Default to 30 days
-    
-    let conn;
-    try {
-        conn = await pool.getConnection();
-        
-        // Calculate date range
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - parseInt(daysBack));
-        
-        // Format dates for SQL
-        const startDateStr = startDate.toISOString().split('T')[0];
-        const endDateStr = endDate.toISOString().split('T')[0];
-        
-        // Get all venues
-        const venues = await conn.query("SELECT * FROM venues");
-        
-        // Get booking counts per venue in date range
-        const bookingCounts = await conn.query(
-            `SELECT venue, COUNT(*) as count 
+        // Bookings per day (last 7 days)
+        const last7DaysQuery = await conn.query(`
+            SELECT DATE_FORMAT(date, '%Y-%m-%d') as booking_date, COUNT(*) as count 
             FROM bookings 
-            WHERE date BETWEEN ? AND ? 
-            GROUP BY venue`,
-            [startDateStr, endDateStr]
-        );
-        
-        // Calculate utilization for each venue
-        const utilizationData = venues.map(venue => {
-            const bookingData = bookingCounts.find(b => b.venue === venue.name);
-            const bookings = bookingData ? bookingData.count : 0;
-            
-            // Maximum possible bookings (assuming 10 slots per day)
-            const maxBookings = parseInt(daysBack) * 10;
-            
-            // Calculate utilization percentage
-            const utilization = Math.min(100, Math.round((bookings / maxBookings) * 100));
-            
-            return {
-                id: venue.id,
-                name: venue.name,
-                capacity: venue.capacity,
-                bookings,
-                utilization
-            };
-        });
-        
-        // Calculate overall utilization
-        const overallUtilization = utilizationData.length > 0
-            ? Math.round(utilizationData.reduce((sum, v) => sum + v.utilization, 0) / utilizationData.length)
-            : 0;
-        
-        res.json({
-            startDate: startDateStr, 
-            endDate: endDateStr,
-            overallUtilization,
-            venues: utilizationData
-        });
-    } catch (err) {
-        console.error('Utilization analytics error:', err);
-        res.status(500).json({ message: "Error fetching utilization data", error: err.message });
-    } finally {
-        if (conn) conn.release();
-    }
-});
-
-// Get department booking stats
-app.get('/api/analytics/departments', async (req, res) => {
-    const daysBack = req.query.days || 30; // Default to 30 days
-    
-    let conn;
-    try {
-        conn = await pool.getConnection();
-        
-        // Calculate date range
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - parseInt(daysBack));
-        
-        // Format dates for SQL
-        const startDateStr = startDate.toISOString().split('T')[0];
-        const endDateStr = endDate.toISOString().split('T')[0];
-        
-        // Get booking counts per department in date range
-        const departmentStats = await conn.query(
-            `SELECT department, COUNT(*) as bookings
-            FROM bookings 
-            WHERE date BETWEEN ? AND ? 
-            GROUP BY department
-            ORDER BY bookings DESC`,
-            [startDateStr, endDateStr]
-        );
-        
-        res.json({
-            startDate: startDateStr,
-            endDate: endDateStr,
-            departments: departmentStats
-        });
-    } catch (err) {
-        console.error('Department analytics error:', err);
-        res.status(500).json({ message: "Error fetching department data", error: err.message });
-    } finally {
-        if (conn) conn.release();
-    }
-});
-
-// Get time-based booking stats (hours and days)
-app.get('/api/analytics/time', async (req, res) => {
-    const daysBack = req.query.days || 30; // Default to 30 days
-    
-    let conn;
-    try {
-        conn = await pool.getConnection();
-        
-        // Calculate date range
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - parseInt(daysBack));
-        
-        // Format dates for SQL
-        const startDateStr = startDate.toISOString().split('T')[0];
-        const endDateStr = endDate.toISOString().split('T')[0];
-        
-        // Get bookings in date range
-        const bookings = await conn.query(
-            `SELECT date, time
-            FROM bookings 
-            WHERE date BETWEEN ? AND ?`,
-            [startDateStr, endDateStr]
-        );
-        
-        // Process time-based stats
-        const hourStats = Array(24).fill(0);
-        const dayStats = Array(7).fill(0);
-        
-        bookings.forEach(booking => {
-            // Process hour stats
-            if (booking.time) {
-                const hour = parseInt(booking.time.split(':')[0]);
-                if (!isNaN(hour) && hour >= 0 && hour < 24) {
-                    hourStats[hour]++;
-                }
-            }
-            
-            // Process day of week stats
-            if (booking.date) {
-                const date = new Date(booking.date);
-                const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
-                dayStats[dayOfWeek]++;
-            }
-        });
-        
-        res.json({
-            startDate: startDateStr,
-            endDate: endDateStr,
-            hourStats,
-            dayStats
-        });
-    } catch (err) {
-        console.error('Time analytics error:', err);
-        res.status(500).json({ message: "Error fetching time-based analytics", error: err.message });
-    } finally {
-        if (conn) conn.release();
-    }
-});
-
-// Get room efficiency data
-app.get('/api/analytics/efficiency', async (req, res) => {
-    const daysBack = req.query.days || 30; // Default to 30 days
-    
-    let conn;
-    try {
-        conn = await pool.getConnection();
-        
-        // Calculate date range
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - parseInt(daysBack));
-        
-        // Format dates for SQL
-        const startDateStr = startDate.toISOString().split('T')[0];
-        const endDateStr = endDate.toISOString().split('T')[0];
-        
-        // Get all venues
-        const venues = await conn.query("SELECT * FROM venues");
-        
-        // For each venue, calculate booking stats
-        const efficiencyData = [];
-        
-        for (const venue of venues) {
-            // Get bookings for this venue
-            const bookings = await conn.query(
-                `SELECT * FROM bookings 
-                WHERE venue = ? AND date BETWEEN ? AND ?`,
-                [venue.name, startDateStr, endDateStr]
-            );
-            
-            // Calculate usage hours (assuming 2 hours per booking)
-            const usageHours = bookings.length * 2;
-            
-            // Maximum possible hours (assuming 14 hours per day - 6 AM to 8 PM)
-            const maxHours = parseInt(daysBack) * 14;
-            
-            // Calculate utilization percentage
-            const utilization = Math.min(100, Math.round((usageHours / maxHours) * 100));
-            
-            // Extract capacity ranges for efficiency calculation
-            let capacityValue = 0;
-            if (venue.capacity === '0-50') capacityValue = 25;
-            else if (venue.capacity === '50-100') capacityValue = 75;
-            else if (venue.capacity === '100-150') capacityValue = 125;
-            else if (venue.capacity === '150-200') capacityValue = 175;
-            else if (venue.capacity === '200+') capacityValue = 250;
-            
-            // In a real app, this would use actual attendee counts from bookings
-            // For demo purposes, generate a random average within capacity range
-            const avgAttendees = Math.min(
-                capacityValue,
-                Math.floor(Math.random() * (capacityValue * 0.8)) + (capacityValue * 0.2)
-            );
-            
-            // Calculate efficiency score
-            // Formula: 70% utilization + 30% space utilization (avgAttendees/capacity)
-            const spaceUtilization = capacityValue > 0 ? Math.min(100, Math.round((avgAttendees / capacityValue) * 100)) : 0;
-            const efficiencyScore = Math.round((utilization * 0.7) + (spaceUtilization * 0.3));
-            
-            efficiencyData.push({
-                id: venue.id,
-                name: venue.name,
-                capacity: venue.capacity,
-                averageAttendees: avgAttendees,
-                usageHours,
-                utilization,
-                spaceUtilization,
-                efficiencyScore
-            });
-        }
-        
-        // Sort by efficiency score (highest first)
-        efficiencyData.sort((a, b) => b.efficiencyScore - a.efficiencyScore);
-        
-        res.json({
-            startDate: startDateStr,
-            endDate: endDateStr,
-            venues: efficiencyData
-        });
-    } catch (err) {
-        console.error('Efficiency analytics error:', err);
-        res.status(500).json({ message: "Error fetching efficiency data", error: err.message });
-    } finally {
-        if (conn) conn.release();
-    }
-});
-
-// 1. Endpoint for dashboard analytics summary
-app.get('/api/analytics/summary', async (req, res) => {
-    let conn;
-    try {
-        conn = await pool.getConnection();
-        
-        // Get total users count
-        const usersCount = await conn.query(
-            "SELECT COUNT(*) as total FROM users"
-        );
-        
-        // Get total bookings count
-        const bookingsCount = await conn.query(
-            "SELECT COUNT(*) as total FROM bookings"
-        );
-        
-        // Get total venues count 
-        const venuesCount = await conn.query(
-            "SELECT COUNT(*) as total FROM venues"
-        );
-        
-        // Get bookings for today
-        const today = new Date().toISOString().split('T')[0];
-        const todayBookings = await conn.query(
-            "SELECT COUNT(*) as total FROM bookings WHERE date = ?",
-            [today]
-        );
-        
-        // Combine all stats into one response
-        res.json({
-            users: usersCount[0].total,
-            totalBookings: bookingsCount[0].total,
-            venues: venuesCount[0].total,
-            todayBookings: todayBookings[0].total
-        });
-    } catch (err) {
-        console.error('Analytics summary error:', err);
-        res.status(500).json({ message: "Error fetching analytics summary", error: err.message });
-    } finally {
-        if (conn) conn.release();
-    }
-});
-
-// 2. Endpoint for bookings by venue
-app.get('/api/analytics/bookings-by-venue', async (req, res) => {
-    let conn;
-    try {
-        conn = await pool.getConnection();
-        
-        // Get bookings grouped by venue
-        const bookingsByVenue = await conn.query(`
-            SELECT 
-                venue, 
-                COUNT(*) as count 
-            FROM bookings 
-            GROUP BY venue 
-            ORDER BY count DESC
+            WHERE date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) 
+            GROUP BY booking_date 
+            ORDER BY booking_date
         `);
+        const last7Days = processDatabaseResults(last7DaysQuery);
         
-        res.json(bookingsByVenue);
-    } catch (err) {
-        console.error('Bookings by venue error:', err);
-        res.status(500).json({ message: "Error fetching bookings by venue", error: err.message });
-    } finally {
-        if (conn) conn.release();
-    }
-});
-
-// 3. Endpoint for bookings by department
-app.get('/api/analytics/bookings-by-department', async (req, res) => {
-    let conn;
-    try {
-        conn = await pool.getConnection();
-        
-        // Get bookings grouped by department
-        const bookingsByDepartment = await conn.query(`
-            SELECT 
-                department, 
-                COUNT(*) as count 
-            FROM bookings 
-            GROUP BY department 
-            ORDER BY count DESC
-        `);
-        
-        res.json(bookingsByDepartment);
-    } catch (err) {
-        console.error('Bookings by department error:', err);
-        res.status(500).json({ message: "Error fetching bookings by department", error: err.message });
-    } finally {
-        if (conn) conn.release();
-    }
-});
-
-// 4. Endpoint for bookings trend over time
-app.get('/api/analytics/bookings-trend', async (req, res) => {
-    // Get period from query (day, week, month, year)
-    const period = req.query.period || 'month';
-    let groupBy, dateFormat;
-    
-    // Set grouping and formatting based on requested period
-    switch(period) {
-        case 'day':
-            groupBy = "DATE(date)";
-            dateFormat = "%Y-%m-%d";
-            break;
-        case 'week':
-            groupBy = "YEARWEEK(date)";
-            dateFormat = "%Y-%u"; // Year-Week
-            break;
-        case 'month':
-            groupBy = "YEAR(date), MONTH(date)";
-            dateFormat = "%Y-%m";
-            break;
-        case 'year':
-            groupBy = "YEAR(date)";
-            dateFormat = "%Y";
-            break;
-        default:
-            groupBy = "DATE(date)";
-            dateFormat = "%Y-%m-%d";
-    }
-    
-    let conn;
-    try {
-        conn = await pool.getConnection();
-        
-        // Get bookings trend data
-        const bookingsTrend = await conn.query(`
-            SELECT 
-                DATE_FORMAT(date, '${dateFormat}') as time_period,
-                COUNT(*) as count 
-            FROM bookings 
-            GROUP BY ${groupBy}
-            ORDER BY date
-        `);
-        
-        res.json(bookingsTrend);
-    } catch (err) {
-        console.error('Bookings trend error:', err);
-        res.status(500).json({ message: "Error fetching bookings trend", error: err.message });
-    } finally {
-        if (conn) conn.release();
-    }
-});
-
-// 5. Endpoint for equipment usage
-app.get('/api/analytics/equipment-usage', async (req, res) => {
-    let conn;
-    try {
-        conn = await pool.getConnection();
-        
-        // Get equipment usage statistics
-        const equipmentUsage = await conn.query(`
-            SELECT 
-                SUM(projectorRequired = true) as projector_count,
-                SUM(speakerRequired = true) as speaker_count,
-                COUNT(*) as total_bookings
-            FROM bookings
-        `);
-        
-        res.json({
-            projector: {
-                count: equipmentUsage[0].projector_count,
-                percentage: equipmentUsage[0].total_bookings > 0 ? 
-                    Math.round((equipmentUsage[0].projector_count / equipmentUsage[0].total_bookings) * 100) : 0
-            },
-            speaker: {
-                count: equipmentUsage[0].speaker_count,
-                percentage: equipmentUsage[0].total_bookings > 0 ? 
-                    Math.round((equipmentUsage[0].speaker_count / equipmentUsage[0].total_bookings) * 100) : 0
-            },
-            total: equipmentUsage[0].total_bookings
-        });
-    } catch (err) {
-        console.error('Equipment usage error:', err);
-        res.status(500).json({ message: "Error fetching equipment usage", error: err.message });
-    } finally {
-        if (conn) conn.release();
-    }
-});
-
-// 6. Endpoint for peak booking times
-app.get('/api/analytics/peak-times', async (req, res) => {
-    let conn;
-    try {
-        conn = await pool.getConnection();
-        
-        // Extract hour from booking time and group by it
-        const peakTimes = await conn.query(`
-            SELECT 
-                HOUR(time) as hour,
-                COUNT(*) as count 
-            FROM bookings 
-            GROUP BY HOUR(time) 
-            ORDER BY count DESC
-        `);
-        
-        // Calculate total bookings for percentage
-        const totalBookings = await conn.query(
-            "SELECT COUNT(*) as total FROM bookings"
-        );
-        
-        // Add percentage to each time slot
-        const result = peakTimes.map(slot => ({
-            hour: slot.hour,
-            count: slot.count,
-            percentage: Math.round((slot.count / totalBookings[0].total) * 100)
-        }));
-        
-        res.json(result);
-    } catch (err) {
-        console.error('Peak times error:', err);
-        res.status(500).json({ message: "Error fetching peak booking times", error: err.message });
-    } finally {
-        if (conn) conn.release();
-    }
-});
-
-// Endpoint for all analytics data with BigInt to Number conversion
-app.get('/api/analytics/dashboard', async (req, res) => {
-    const period = req.query.period || 'month'; // Default to monthly
-    
-    let conn;
-    try {
-        conn = await pool.getConnection();
-        
-        // Helper function to convert BigInt to Number
-        const convertBigIntToNumber = (obj) => {
-            const convertedObj = {};
-            for (const [key, value] of Object.entries(obj)) {
-                convertedObj[key] = typeof value === 'bigint' ? Number(value) : value;
-            }
-            return convertedObj;
-        };
-
-        // Helper function to convert array of objects with BigInt to Number
-        const convertArrayBigIntToNumber = (arr) => {
-            return arr.map(item => {
-                const convertedItem = {};
-                for (const [key, value] of Object.entries(item)) {
-                    convertedItem[key] = typeof value === 'bigint' ? Number(value) : value;
-                }
-                return convertedItem;
-            });
-        };
-        
-        // Get summary data
-        const summary = {
-            users: 0,
-            bookings: 0,
-            venues: 0
-        };
-        
-        // Get user count
-        const userCountResult = await conn.query("SELECT COUNT(*) as count FROM users");
-        summary.users = Number(userCountResult[0].count);
-        
-        // Get booking count
-        const bookingCountResult = await conn.query("SELECT COUNT(*) as count FROM bookings");
-        summary.bookings = Number(bookingCountResult[0].count);
-        
-        // Get venue count
-        const venueCountResult = await conn.query("SELECT COUNT(*) as count FROM venues");
-        summary.venues = Number(venueCountResult[0].count);
-        
-        // Define date format based on period
-        let dateFormat;
-        let groupBy;
-        
-        switch(period) {
-            case 'day':
-                dateFormat = '%Y-%m-%d';
-                groupBy = 'DATE(date)';
-                break;
-            case 'week':
-                dateFormat = '%Y-%u'; // Year and week number
-                groupBy = 'YEARWEEK(date)';
-                break;
-            case 'year':
-                dateFormat = '%Y';
-                groupBy = 'YEAR(date)';
-                break;
-            case 'month':
-            default:
-                dateFormat = '%Y-%m';
-                groupBy = 'YEAR(date), MONTH(date)';
-                break;
-        }
-        
-        // Get bookings by venue
-        const bookingsByVenue = await conn.query(`
+        // Top 5 venues by booking count
+        const topVenuesQuery = await conn.query(`
             SELECT venue, COUNT(*) as count 
             FROM bookings 
             GROUP BY venue 
-            ORDER BY count DESC
-        `);
-        const formattedBookingsByVenue = convertArrayBigIntToNumber(bookingsByVenue);
-        
-        // Get bookings by department
-        const bookingsByDepartment = await conn.query(`
-            SELECT 
-                IFNULL(department, 'Other') as department, 
-                COUNT(*) as count 
-            FROM bookings 
-            GROUP BY department 
-            ORDER BY count DESC
-        `);
-        const formattedBookingsByDepartment = convertArrayBigIntToNumber(bookingsByDepartment);
-        
-        // Get monthly trend
-        const monthlyTrend = await conn.query(`
-            SELECT 
-                DATE_FORMAT(date, '${dateFormat}') as month,
-                COUNT(*) as count 
-            FROM bookings 
-            GROUP BY ${groupBy}
-            ORDER BY date
-        `);
-        const formattedMonthlyTrend = convertArrayBigIntToNumber(monthlyTrend);
-        
-        // Get peak booking time
-        const peakTimeResult = await conn.query(`
-            SELECT 
-                HOUR(time) as hour,
-                COUNT(*) as count 
-            FROM bookings 
-            GROUP BY HOUR(time) 
             ORDER BY count DESC 
-            LIMIT 1
+            LIMIT 5
         `);
+        const topVenues = processDatabaseResults(topVenuesQuery);
         
-        const peakBookingTime = peakTimeResult.length > 0 ? {
-            hour: Number(peakTimeResult[0].hour),
-            count: Number(peakTimeResult[0].count)
-        } : null;
-        
-        // Get equipment usage
-        const equipmentResult = await conn.query(`
-            SELECT 
-                SUM(projectorRequired = true) as projector_count,
-                SUM(speakerRequired = true) as speaker_count,
-                COUNT(*) as total_bookings
-            FROM bookings
-        `);
-        
-        const equipmentUsage = {
-            projector: {
-                count: Number(equipmentResult[0].projector_count || 0),
-                percentage: equipmentResult[0].total_bookings > 0 ? 
-                    Math.round((Number(equipmentResult[0].projector_count) / Number(equipmentResult[0].total_bookings)) * 100) : 0
-            },
-            speaker: {
-                count: Number(equipmentResult[0].speaker_count || 0),
-                percentage: equipmentResult[0].total_bookings > 0 ? 
-                    Math.round((Number(equipmentResult[0].speaker_count) / Number(equipmentResult[0].total_bookings)) * 100) : 0
-            },
-            total: Number(equipmentResult[0].total_bookings || 0)
-        };
-        
-        // Get most active user
-        const mostActiveUserResult = await conn.query(`
-            SELECT 
-                username, 
-                COUNT(*) as booking_count 
+        // Top departments
+        const topDepartmentsQuery = await conn.query(`
+            SELECT department, COUNT(*) as count 
             FROM bookings 
-            GROUP BY username 
-            ORDER BY booking_count DESC 
-            LIMIT 1
+            WHERE department IS NOT NULL
+            GROUP BY department 
+            ORDER BY count DESC 
+            LIMIT 5
         `);
+        const topDepartments = processDatabaseResults(topDepartmentsQuery);
         
-        const mostActiveUser = mostActiveUserResult.length > 0 ? {
-            username: mostActiveUserResult[0].username,
-            bookingCount: Number(mostActiveUserResult[0].booking_count)
-        } : null;
-        
-        // Compile all data
-        const dashboardData = {
-            summary,
-            bookingsByVenue: formattedBookingsByVenue,
-            bookingsByDepartment: formattedBookingsByDepartment,
-            monthlyTrend: formattedMonthlyTrend,
-            peakBookingTime,
-            equipmentUsage,
-            mostActiveUser
-        };
-        
-        res.json(dashboardData);
+        res.json({
+            totalBookings,
+            last7Days,
+            topVenues,
+            topDepartments
+        });
     } catch (err) {
-        console.error('Dashboard error:', err);
-        res.status(500).json({ message: "Error fetching dashboard data", error: err.message });
+        console.error('Booking stats error:', err);
+        res.status(500).json({ message: "Error fetching booking statistics", error: err.message });
     } finally {
         if (conn) conn.release();
     }
 });
 
-// Analytics Endpoints
-app.get('/api/analytics', async (req, res) => {
-    const { startDate, endDate, venue } = req.query;
-    
+// UPDATED Analytics dashboard endpoint
+app.get('/api/analytics/dashboard', async (req, res) => {
+    const period = req.query.period || 'month';
     let conn;
     try {
         conn = await pool.getConnection();
         
-        // Base query conditions
-        let conditions = 'WHERE 1=1';
-        let params = [];
-        
-        if (startDate && endDate) {
-            conditions += ' AND date BETWEEN ? AND ?';
-            params.push(startDate, endDate);
+        // Determine date range based on period
+        let dateInterval;
+        switch (period) {
+            case 'week':
+                dateInterval = 'INTERVAL 7 DAY';
+                break;
+            case 'month':
+                dateInterval = 'INTERVAL 30 DAY';
+                break;
+            case 'quarter':
+                dateInterval = 'INTERVAL 90 DAY';
+                break;
+            case 'year':
+                dateInterval = 'INTERVAL 365 DAY';
+                break;
+            default:
+                dateInterval = 'INTERVAL 30 DAY';
         }
         
-        if (venue && venue !== 'all') {
-            conditions += ' AND venue = ?';
-            params.push(venue);
-        }
+        // Monthly trend data 
+        const monthlyTrendQuery = await conn.query(`
+            SELECT DATE_FORMAT(date, '%Y-%m') as month, COUNT(*) as count 
+            FROM bookings 
+            WHERE date >= DATE_SUB(CURDATE(), ${dateInterval})
+            GROUP BY month 
+            ORDER BY month
+        `);
+        const monthlyTrend = processDatabaseResults(monthlyTrendQuery);
         
-        // Get total bookings
-        const totalBookingsQuery = `SELECT COUNT(*) as count FROM bookings ${conditions}`;
-        const totalBookingsResult = await conn.query(totalBookingsQuery, params);
-        const totalBookings = totalBookingsResult[0].count;
-        
-        // Get previous period bookings (for comparison)
-        // Calculate the date range length
-        const start = new Date(startDate || new Date());
-        const end = new Date(endDate || new Date());
-        const daysDiff = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
-        
-        // Calculate the previous period date range
-        const prevEnd = new Date(start);
-        prevEnd.setDate(prevEnd.getDate() - 1);
-        
-        const prevStart = new Date(prevEnd);
-        prevStart.setDate(prevStart.getDate() - daysDiff + 1);
-        
-        // Query for previous period
-        const prevConditions = 'WHERE date BETWEEN ? AND ?';
-        const prevParams = [prevStart.toISOString().split('T')[0], prevEnd.toISOString().split('T')[0]];
-        
-        if (venue && venue !== 'all') {
-            prevParams.push(venue);
-            prevConditions += ' AND venue = ?';
-        }
-        
-        const prevBookingsQuery = `SELECT COUNT(*) as count FROM bookings ${prevConditions}`;
-        const prevBookingsResult = await conn.query(prevBookingsQuery, prevParams);
-        const prevTotalBookings = prevBookingsResult[0].count;
-        
-        // Calculate booking trend percentage
-        let bookingsTrend = 0;
-        if (prevTotalBookings > 0) {
-            bookingsTrend = ((totalBookings - prevTotalBookings) / prevTotalBookings * 100).toFixed(1);
-        }
-        
-        // Get venue utilization
-        const venueUtilizationQuery = `
-            SELECT 
-                venue,
-                COUNT(*) as bookings,
-                (COUNT(*) / 
-                    (SELECT 
-                        DATEDIFF(?, ?) * 
-                        (SELECT COUNT(*) FROM venues WHERE status = 'available' 
-                         ${venue && venue !== 'all' ? 'AND name = ?' : ''})
-                    )
-                ) * 100 as utilization_rate
-            FROM bookings
-            ${conditions}
-            GROUP BY venue
-            ORDER BY utilization_rate DESC
-        `;
-        
-        const venueUtilizationParams = [
-            endDate || new Date().toISOString().split('T')[0], 
-            startDate || new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0], 
-            ...(venue && venue !== 'all' ? [venue] : []),
-            ...params
-        ];
-        
-        const venueUtilizationResult = await conn.query(venueUtilizationQuery, venueUtilizationParams);
-        
-        // Calculate overall utilization rate
-        const totalAvailableSlots = daysDiff * (await conn.query(
-            `SELECT COUNT(*) as count FROM venues WHERE status = 'available'
-            ${venue && venue !== 'all' ? 'AND name = ?' : ''}`,
-            venue && venue !== 'all' ? [venue] : []
-        ))[0].count;
-        
-        const utilizationRate = totalAvailableSlots > 0 
-            ? ((totalBookings / totalAvailableSlots) * 100).toFixed(1) 
-            : 0;
-        
-        // Get previous period utilization rate
-        const prevUtilizationRate = prevTotalBookings > 0 && totalAvailableSlots > 0
-            ? ((prevTotalBookings / totalAvailableSlots) * 100).toFixed(1)
-            : 0;
-        
-        // Calculate utilization trend
-        let utilizationTrend = 0;
-        if (prevUtilizationRate > 0) {
-            utilizationTrend = (utilizationRate - prevUtilizationRate).toFixed(1);
-        }
-        
-        // Get most used venue
-        const mostUsedVenueQuery = `
+        // Bookings by venue
+        const bookingsByVenueQuery = await conn.query(`
             SELECT venue, COUNT(*) as count
             FROM bookings
-            ${conditions}
+            WHERE date >= DATE_SUB(CURDATE(), ${dateInterval})
             GROUP BY venue
             ORDER BY count DESC
-            LIMIT 1
-        `;
+        `);
+        const bookingsByVenue = processDatabaseResults(bookingsByVenueQuery);
         
-        const mostUsedVenueResult = await conn.query(mostUsedVenueQuery, params);
-        const mostUsedVenue = mostUsedVenueResult.length > 0 
-            ? mostUsedVenueResult[0].venue 
-            : 'N/A';
-        
-        const mostUsedVenueBookings = mostUsedVenueResult.length > 0 
-            ? mostUsedVenueResult[0].count 
-            : 0;
-        
-        // Get peak booking time
-        const peakTimeQuery = `
-            SELECT 
-                HOUR(time) as hour,
-                COUNT(*) as count,
-                CONCAT(
-                    HOUR(time) % 12 = 0 ? 12 : HOUR(time) % 12,
-                    ':00 ',
-                    HOUR(time) < 12 ? 'AM' : 'PM'
-                ) as formatted_time
+        // Bookings by department
+        const bookingsByDepartmentQuery = await conn.query(`
+            SELECT department, COUNT(*) as count
             FROM bookings
-            ${conditions}
-            GROUP BY HOUR(time)
-            ORDER BY count DESC
-            LIMIT 1
-        `;
-        
-        const peakTimeResult = await conn.query(peakTimeQuery, params);
-        const peakBookingTime = peakTimeResult.length > 0 
-            ? peakTimeResult[0].formatted_time 
-            : 'N/A';
-        
-        const peakTimeCount = peakTimeResult.length > 0 
-            ? peakTimeResult[0].count 
-            : 0;
-        
-        const peakTimePercentage = totalBookings > 0 
-            ? ((peakTimeCount / totalBookings) * 100).toFixed(1) 
-            : 0;
-        
-        // Get bookings by department
-        const departmentBookingsQuery = `
-            SELECT 
-                department,
-                COUNT(*) as count
-            FROM bookings
-            ${conditions}
+            WHERE department IS NOT NULL AND date >= DATE_SUB(CURDATE(), ${dateInterval})
             GROUP BY department
             ORDER BY count DESC
-        `;
+        `);
+        const bookingsByDepartment = processDatabaseResults(bookingsByDepartmentQuery);
         
-        const departmentBookingsResult = await conn.query(departmentBookingsQuery, params);
-        
-        // Get bookings trend (by week or day depending on range)
-        const isLongPeriod = daysDiff > 14;
-        const groupBy = isLongPeriod ? 'WEEK' : 'DAY';
-        const labelFormat = isLongPeriod ? 'Week %U' : '%Y-%m-%d';
-        
-        const bookingsTrendQuery = `
+        // Equipment usage data
+        const equipmentUsageQuery = await conn.query(`
             SELECT 
-                DATE_FORMAT(date, '${labelFormat}') as label,
-                COUNT(*) as count
+                SUM(CASE WHEN projectorRequired = TRUE THEN 1 ELSE 0 END) as projector_count,
+                SUM(CASE WHEN speakerRequired = TRUE THEN 1 ELSE 0 END) as speaker_count,
+                COUNT(*) as total_count
             FROM bookings
-            ${conditions}
-            GROUP BY ${groupBy}(date)
-            ORDER BY date
-        `;
+            WHERE date >= DATE_SUB(CURDATE(), ${dateInterval})
+        `);
+        const equipmentData = processDatabaseResults(equipmentUsageQuery)[0];
         
-        const bookingsTrendResult = await conn.query(bookingsTrendQuery, params);
+        const projectorPercentage = equipmentData.total_count > 0 
+            ? Math.round((equipmentData.projector_count / equipmentData.total_count) * 100) 
+            : 0;
+            
+        const speakerPercentage = equipmentData.total_count > 0 
+            ? Math.round((equipmentData.speaker_count / equipmentData.total_count) * 100) 
+            : 0;
         
-        // Get equipment usage
-        const equipmentUsageQuery = `
-            SELECT 
-                'Projector' as equipment,
-                SUM(projectorRequired) as count
+        // Most popular venue
+        const popularVenue = bookingsByVenue.length > 0 ? bookingsByVenue[0] : { venue: 'N/A', count: 0 };
+        
+        // Peak booking time
+        const peakTimeQuery = await conn.query(`
+            SELECT HOUR(time) as hour, COUNT(*) as count, 
+                   (COUNT(*) / (SELECT COUNT(*) FROM bookings WHERE date >= DATE_SUB(CURDATE(), ${dateInterval}))) * 100 as percentage
             FROM bookings
-            ${conditions}
-            UNION
-            SELECT 
-                'Speaker System' as equipment,
-                SUM(speakerRequired) as count
-            FROM bookings
-            ${conditions}
-        `;
-        
-        const equipmentUsageResult = await conn.query(equipmentUsageQuery, [...params, ...params]);
-        
-        // Get hourly distribution
-        const timeDistributionQuery = `
-            SELECT 
-                HOUR(time) as hour,
-                COUNT(*) as count,
-                CONCAT(
-                    HOUR(time) % 12 = 0 ? 12 : HOUR(time) % 12,
-                    ':00 ',
-                    HOUR(time) < 12 ? 'AM' : 'PM'
-                ) as formatted_hour
-            FROM bookings
-            ${conditions}
+            WHERE date >= DATE_SUB(CURDATE(), ${dateInterval})
             GROUP BY HOUR(time)
-            ORDER BY hour
-        `;
+            ORDER BY count DESC
+            LIMIT 1
+        `);
+        const peakTime = processDatabaseResults(peakTimeQuery)[0] || { hour: 9, count: 0, percentage: 0 };
         
-        const timeDistributionResult = await conn.query(timeDistributionQuery, params);
+        // Top department
+        const topDepartment = bookingsByDepartment.length > 0 ? bookingsByDepartment[0] : { department: 'N/A', count: 0 };
         
-        // Get capacity analysis
-        // Note: This would require actual attendee data which is not in your current schema
-        // For demo purposes, we'll compute simulated efficiency based on room capacity vs. booking frequency
-        const capacityAnalysisQuery = `
-            SELECT 
-                b.venue,
-                COUNT(*) as booking_count,
-                CASE
-                    WHEN v.name LIKE '%L%' THEN '0-50'
-                    WHEN v.name LIKE '%BSR%' THEN '50-100'
-                    WHEN v.name LIKE '%S2%' THEN '100-150'
-                    WHEN v.name LIKE '%Pavilion%' THEN '200+'
-                    ELSE '0-50'
-                END as capacity_range,
-                CASE
-                    WHEN v.name LIKE '%L%' THEN FLOOR(RAND() * 30) + 10
-                    WHEN v.name LIKE '%BSR%' THEN FLOOR(RAND() * 30) + 60
-                    WHEN v.name LIKE '%S2%' THEN FLOOR(RAND() * 30) + 110
-                    WHEN v.name LIKE '%Pavilion%' THEN FLOOR(RAND() * 50) + 180
-                    ELSE FLOOR(RAND() * 30) + 10
-                END as avg_attendees
-            FROM 
-                bookings b
-            LEFT JOIN 
-                venues v ON b.venue = v.name
-            ${conditions.replace('WHERE', 'WHERE b.')}
-            GROUP BY b.venue
-        `;
+        // Most active user
+        const activeUserQuery = await conn.query(`
+            SELECT username, COUNT(*) as bookingCount
+            FROM bookings
+            WHERE date >= DATE_SUB(CURDATE(), ${dateInterval})
+            GROUP BY username
+            ORDER BY bookingCount DESC
+            LIMIT 1
+        `);
+        const activeUser = processDatabaseResults(activeUserQuery)[0] || { username: 'N/A', bookingCount: 0 };
         
-        const capacityAnalysisResult = await conn.query(capacityAnalysisQuery, params);
-        
-        // Format capacity analysis results
-        const capacityAnalysis = capacityAnalysisResult.map(item => {
-            let capacity;
-            switch(item.capacity_range) {
-                case '0-50': capacity = 50; break;
-                case '50-100': capacity = 100; break;
-                case '100-150': capacity = 150; break;
-                case '150-200': capacity = 200; break;
-                case '200+': capacity = 250; break;
-                default: capacity = 50;
-            }
-            
-            const efficiency = Math.round((item.avg_attendees / capacity) * 100);
-            
-            return {
-                venue: item.venue,
-                capacity: item.capacity_range,
-                avgAttendees: item.avg_attendees,
-                efficiency: efficiency > 100 ? 100 : efficiency
-            };
+        // Log the analytics data being sent to client
+        console.log('Sending analytics data:', {
+            monthlyTrend: monthlyTrend.length,
+            bookingsByVenue: bookingsByVenue.length,
+            popularVenue,
+            peakTime,
+            topDepartment,
+            activeUser
         });
         
-        // Get department analysis
-        const departmentAnalysisQuery = `
-            SELECT 
-                department,
-                COUNT(*) as booking_count,
-                (
-                    SELECT venue 
-                    FROM bookings b2 
-                    WHERE b2.department = b1.department 
-                    ${startDate && endDate ? 'AND b2.date BETWEEN ? AND ?' : ''}
-                    GROUP BY venue 
-                    ORDER BY COUNT(*) DESC 
-                    LIMIT 1
-                ) as most_used_venue,
-                FLOOR(60 + RAND() * 60) as avg_duration,
-                CONCAT(
-                    6 + FLOOR(RAND() * 10),
-                    ':00 AM'
-                ) as peak_time
-            FROM 
-                bookings b1
-            ${conditions}
-            GROUP BY department
-            ORDER BY booking_count DESC
-        `;
-        
-        const departmentAnalysisParams = [...params];
-        if (startDate && endDate) {
-            departmentAnalysisParams.push(startDate, endDate);
-        }
-        
-        const departmentAnalysisResult = await conn.query(departmentAnalysisQuery, departmentAnalysisParams);
-        
-        // Format department analysis
-        const departmentAnalysis = departmentAnalysisResult.map(item => ({
-            department: item.department || 'Unspecified',
-            totalBookings: item.booking_count,
-            mostUsedVenue: item.most_used_venue || 'N/A',
-            avgDuration: item.avg_duration,
-            peakTime: item.peak_time
-        }));
-        
-        // Get booking history
-        const bookingHistoryQuery = `
-            SELECT 
-                id,
-                title,
-                venue,
-                date,
-                TIME_FORMAT(time, '%h:%i %p') as time,
-                username,
-                department,
-                CASE
-                    WHEN department = 'Administration' THEN FLOOR(RAND() * 10) + 5
-                    WHEN department = 'Faculty' THEN FLOOR(RAND() * 15) + 10
-                    WHEN department = 'Student' THEN FLOOR(RAND() * 50) + 30
-                    WHEN department = 'Clubs' THEN FLOOR(RAND() * 20) + 10
-                    ELSE FLOOR(RAND() * 10) + 5
-                END as attendees,
-                projectorRequired,
-                speakerRequired
-            FROM 
-                bookings
-            ${conditions}
-            ORDER BY date DESC, time DESC
-            LIMIT 50
-        `;
-        
-        const bookingHistoryResult = await conn.query(bookingHistoryQuery, params);
-        
-        // Compile and return all analytics data
-        const analyticsData = {
-            metrics: {
-                totalBookings,
-                utilizationRate,
-                mostUsedVenue,
-                peakBookingTime,
-                bookingsTrend,
-                utilizationTrend,
-                mostUsedVenueBookings,
-                peakTimePercentage
-            },
-            venueUtilization: {
-                venues: venueUtilizationResult.map(item => item.venue),
-                rates: venueUtilizationResult.map(item => parseFloat(item.utilization_rate.toFixed(1)))
-            },
-            departmentBookings: {
-                departments: departmentBookingsResult.map(item => item.department || 'Other'),
-                bookings: departmentBookingsResult.map(item => item.count)
-            },
-            bookingsTrend: {
-                labels: bookingsTrendResult.map(item => item.label),
-                values: bookingsTrendResult.map(item => item.count)
-            },
+        res.json({
+            monthlyTrend,
+            bookingsByVenue, 
+            bookingsByDepartment,
             equipmentUsage: {
-                equipment: equipmentUsageResult.map(item => item.equipment),
-                usageCount: equipmentUsageResult.map(item => parseInt(item.count))
+                projector: {
+                    count: equipmentData.projector_count,
+                    percentage: projectorPercentage
+                },
+                speaker: {
+                    count: equipmentData.speaker_count,
+                    percentage: speakerPercentage
+                }
             },
-            timeDistribution: {
-                hours: timeDistributionResult.map(item => item.formatted_hour),
-                counts: timeDistributionResult.map(item => item.count)
-            },
-            capacityAnalysis,
-            departmentAnalysis,
-            bookingHistory: bookingHistoryResult
-        };
-        
-        res.json(analyticsData);
-    } catch (error) {
-        console.error('Error fetching analytics data:', error);
-        res.status(500).json({ message: 'Error fetching analytics data', error: error.message });
+            popularVenue,
+            peakTime,
+            topDepartment,
+            activeUser
+        });
+    } catch (err) {
+        console.error('Analytics dashboard error:', err);
+        // Send a more detailed error response for debugging
+        res.status(500).json({ 
+            message: "Error fetching analytics dashboard data", 
+            error: err.message,
+            stack: err.stack
+        });
     } finally {
         if (conn) conn.release();
     }
