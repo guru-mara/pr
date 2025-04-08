@@ -213,6 +213,7 @@ app.post('/api/bookings', async (req, res) => {
 });
 
 // Delete Booking
+// In your server.js file
 app.delete('/api/bookings/:id', async (req, res) => {
     const bookingId = req.params.id;
     const username = req.query.username;
@@ -225,6 +226,13 @@ app.delete('/api/bookings/:id', async (req, res) => {
     try {
         conn = await pool.getConnection();
 
+        // Special case for admin
+        if (username === "admin@example.com") {
+            await conn.query("DELETE FROM bookings WHERE id = ?", [bookingId]);
+            return res.json({ message: "Booking deleted successfully." });
+        }
+
+        // Regular permission check for normal users
         const existing = await conn.query(
             "SELECT * FROM bookings WHERE id = ? AND username = ?", 
             [bookingId, username]
